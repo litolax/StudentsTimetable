@@ -289,13 +289,13 @@ public class ParserService : IParserService
                     foreach (var lesson in groupInfo.Lessons)
                     {
                         message +=
-                            $"Пара: №{lesson.Number + 1}\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                            $"*Пара: №{lesson.Number + 1}*\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
                     }
                 }
 
                 try
                 {
-                    await bot.SendMessageAsync(user.UserId, message);
+                    await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
                 }
                 catch (Exception e)
                 {
@@ -360,13 +360,13 @@ public class ParserService : IParserService
                 foreach (var lesson in groupInfo.Lessons)
                 {
                     message +=
-                        $"Пара: №{lesson.Number + 1}\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                        $"*Пара: №{lesson.Number + 1}*\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
                 }
             }
 
             try
             {
-                await bot.SendMessageAsync(user.UserId, message);
+                await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
                 if (File.Exists("./logs.txt"))
                     await File.WriteAllTextAsync("./logs.txt",
                         await File.ReadAllTextAsync("./logs.txt") +
