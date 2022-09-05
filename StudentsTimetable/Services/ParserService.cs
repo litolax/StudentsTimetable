@@ -289,7 +289,7 @@ public class ParserService : IParserService
                     foreach (var lesson in groupInfo.Lessons)
                     {
                         message +=
-                            $"Пара: №{lesson.Number + 1}\n\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                            $"Пара: №{lesson.Number + 1}\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
                     }
                 }
 
@@ -360,7 +360,7 @@ public class ParserService : IParserService
                 foreach (var lesson in groupInfo.Lessons)
                 {
                     message +=
-                        $"Пара: №{lesson.Number + 1}\n\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                        $"Пара: №{lesson.Number + 1}\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
                 }
             }
 
