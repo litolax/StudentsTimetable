@@ -367,6 +367,11 @@ public class ParserService : IParserService
             try
             {
                 await bot.SendMessageAsync(user.UserId, message);
+                if (File.Exists("./logs.txt"))
+                    await File.WriteAllTextAsync("./logs.txt",
+                        await File.ReadAllTextAsync("./logs.txt") +
+                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
+                else await File.WriteAllTextAsync("./logs.txt", $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
             }
             catch (Exception e)
             {
@@ -463,6 +468,11 @@ public class ParserService : IParserService
             try
             {
                 await bot.SendPhotoAsync(user.UserId, new InputFile(ms.ToArray(), $"./photo/{user.Group}.png"));
+                if (File.Exists("./logs.txt"))
+                    await File.WriteAllTextAsync("./logs.txt",
+                        await File.ReadAllTextAsync("./logs.txt") +
+                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
+                else await File.WriteAllTextAsync("./logs.txt", $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
             }
             catch (Exception e)
             {
