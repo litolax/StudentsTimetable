@@ -54,19 +54,19 @@ namespace StudentsTimetable.Services
                     await this._interfaceService.HelpCommand(update.Message.From);
                     break;
                 }
-                case "Посмотреть расписание на день":
+                case "🎰Посмотреть расписание на день🎰":
                 {
                     if (update.Message.From is null) return;
                     await this._parserService.SendDayTimetable(update.Message.From);
                     break;
                 }
-                case "Посмотреть расписание на неделю":
+                case "🔪Посмотреть расписание на неделю🔪":
                 {
                     if (update.Message.From is null) return;
                     await this._parserService.SendWeekTimetable(update.Message.From);
                     break;
                 }
-                case "Сменить группу":
+                case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":
                 {
                     var config = new Config<MainConfig>();
                     var bot = new BotClient(config.Entries.Token);
@@ -81,13 +81,13 @@ namespace StudentsTimetable.Services
                     }
                     break;
                 }
-                case "Подписаться на рассылку":
+                case "💳Подписаться на рассылку💳":
                 {
                     if (update.Message.From is null) return;
                     await this._accountService.SubscribeNotifications(update.Message.From);
                     break;
                 }
-                case "Отписаться от рассылки":
+                case "🙏Отписаться от рассылки🙏":
                 {
                     if (update.Message.From is null) return;
                     await this._accountService.UnSubscribeNotifications(update.Message.From);

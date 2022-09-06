@@ -44,21 +44,21 @@ namespace StudentsTimetable.Services
                 {
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на день"),
+                        new KeyboardButton("🎰Посмотреть расписание на день🎰"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на неделю"),
+                        new KeyboardButton("🔪Посмотреть расписание на неделю🔪"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Сменить группу"),
+                        new KeyboardButton("👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦"),
                     },
                     new[]
                     {
                         user!.Notifications
-                            ? new KeyboardButton("Отписаться от рассылки")
-                            : new KeyboardButton("Подписаться на рассылку")
+                            ? new KeyboardButton("🙏Отписаться от рассылки🙏")
+                            : new KeyboardButton("💳Подписаться на рассылку💳")
                     }
                 },
                 ResizeKeyboard = true,

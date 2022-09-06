@@ -75,10 +75,37 @@ namespace StudentsTimetable.Services
             user!.Group = correctGroupName;
             var update = Builders<Models.User>.Update.Set(u => u.Group, user.Group);
             await userCollection.UpdateOneAsync(u => u.UserId == telegramUser.Id, update);
+            
+            var keyboard = new ReplyKeyboardMarkup
+            {
+                Keyboard = new[]
+                {
+                    new[]
+                    {
+                        new KeyboardButton("🎰Посмотреть расписание на день🎰"),
+                    },
+                    new[]
+                    {
+                        new KeyboardButton("🔪Посмотреть расписание на неделю🔪"),
+                    },
+                    new[]
+                    {
+                        new KeyboardButton("👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦"),
+                    },
+                    new[]
+                    {
+                        user!.Notifications
+                            ? new KeyboardButton("🙏Отписаться от рассылки🙏")
+                            : new KeyboardButton("💳Подписаться на рассылку💳")
+                    }
+                },
+                ResizeKeyboard = true,
+                InputFieldPlaceholder = "Выберите действие"
+            };
 
             try
             {
-                await bot.SendMessageAsync(telegramUser.Id, $"Вы успешно выбрали {correctGroupName} группу");
+                await bot.SendMessageAsync(telegramUser.Id, $"Вы успешно выбрали {correctGroupName} группу", replyMarkup: keyboard);
             }
             catch (Exception e)
             {
@@ -120,19 +147,19 @@ namespace StudentsTimetable.Services
                 {
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на день"),
+                        new KeyboardButton("🎰Посмотреть расписание на день🎰"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на неделю"),
+                        new KeyboardButton("🔪Посмотреть расписание на неделю🔪"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Сменить группу"),
+                        new KeyboardButton("👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦"),
                     },
                     new[]
                     {
-                       new KeyboardButton("Отписаться от рассылки") 
+                        new KeyboardButton("🙏Отписаться от рассылки🙏")
                     }
                 },
                 ResizeKeyboard = true,
@@ -168,19 +195,19 @@ namespace StudentsTimetable.Services
                 {
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на день"),
+                        new KeyboardButton("🎰Посмотреть расписание на день🎰"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Посмотреть расписание на неделю"),
+                        new KeyboardButton("🔪Посмотреть расписание на неделю🔪"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Сменить группу"),
+                        new KeyboardButton("👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦"),
                     },
                     new[]
                     {
-                        new KeyboardButton("Подписаться на рассылку")   
+                        new KeyboardButton("💳Подписаться на рассылку💳")
                     }
                 },
                 ResizeKeyboard = true,
