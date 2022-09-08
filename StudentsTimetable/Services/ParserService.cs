@@ -78,8 +78,8 @@ public class ParserService : IParserService
             var workbook = excelEngine.Excel.Workbooks.Open(stream);
             var firstSheet = workbook.Worksheets["sheet1"];
 
-            firstSheet.InsertColumn(firstSheet.Columns.Length, 3);
-            firstSheet.InsertRow(firstSheet.Rows.Length, 20);
+            firstSheet.InsertColumn(firstSheet.Columns.Length + 1, 3);
+            firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
 
             try
             {
@@ -158,10 +158,11 @@ public class ParserService : IParserService
                             kabinet = firstSheet
                                 .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
                                 .Cells[j + 1]
-                                .DisplayText;
+                                .RichText.Text;
                             lessonName = firstSheet
                                 .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                .Cells[j + 1 - 1].DisplayText;
+                                .Cells[j + 1 - 1]
+                                .RichText.Text;
 
                             if (string.Equals(kabinet, lessonName))
                             {

@@ -41,6 +41,17 @@ namespace StudentsTimetable.Services
                 case "/start":
                 {
                     await this._interfaceService.OpenMainMenu(update);
+                    var config = new Config<MainConfig>();
+                    var bot = new BotClient(config.Entries.Token);
+                    try
+                    {
+                        await bot.SendMessageAsync(update.Message.From!.Id, $"Используя бота вы подтверждаете, " +
+                                                                            $"что автор не несет за вас и ваши действия никакой ответственности");
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
                     break;
                 }
                 case "/menu":
@@ -52,6 +63,21 @@ namespace StudentsTimetable.Services
                 {
                     if (update.Message.From is null) return;
                     await this._interfaceService.HelpCommand(update.Message.From);
+                    break;
+                }
+                case "/tos":
+                {
+                    var config = new Config<MainConfig>();
+                    var bot = new BotClient(config.Entries.Token);
+                    try
+                    {
+                        await bot.SendMessageAsync(update.Message.From!.Id, $"Используя бота вы подтверждаете, " +
+                                                                            $"что автор не несет за вас и ваши действия никакой ответственности");
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
                     break;
                 }
                 case "🎰Посмотреть расписание на день🎰":
