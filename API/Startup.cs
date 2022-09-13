@@ -41,8 +41,6 @@ namespace API
                 endpoints.MapGet("/", async context => { await context.Response.WriteAsync("Hello World!"); });
                 endpoints.MapGet("/api", async context =>
                 {
-                    string value = "Hello world";
-                    var json = new JsonResult(value);
                     await context.Response.WriteAsync("penis");
                 });
             });
