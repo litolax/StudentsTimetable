@@ -15,10 +15,9 @@ namespace StudentsTimetable
             Run().GetAwaiter().GetResult();
         }
 
-        
+
         private static async Task Run()
         {
-            
             var serviceProvider = new ServiceCollection()
                 .AddSingleton<IMongoService, MongoService>()
                 .AddSingleton<IParserService, ParserService>()
@@ -32,7 +31,7 @@ namespace StudentsTimetable
             var parserService = serviceProvider.GetService<IParserService>();
             var commandsService = serviceProvider.GetService<ICommandsService>();
             var antiSpamService = serviceProvider.GetService<IAntiSpamService>();
-            
+
             if (commandsService is null || parserService is null || antiSpamService is null) return;
             await parserService.ParseDayTimetables();
             await parserService.ParseWeekTimetables();
@@ -40,10 +39,14 @@ namespace StudentsTimetable
             var mainConfig = new Config<MainConfig>();
             var bot = new BotClient(mainConfig.Entries.Token);
             var updates = await bot.GetUpdatesAsync();
-            bot.SetMyCommands(new[] {new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь"), new BotCommand("menu", "Открыть меню")});
-            
+            bot.SetMyCommands(new[]
+            {
+                new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь"),
+                new BotCommand("menu", "Открыть меню"), new BotCommand("tos", "Пользовательское соглашение")
+            });
+
             Console.WriteLine("Bot started!");
-            
+
             while (true)
             {
                 if (updates.Any())
@@ -58,15 +61,16 @@ namespace StudentsTimetable
                                     if (update.Message.Date < DateTimeOffset.UtcNow.AddMinutes(-3).ToUnixTimeSeconds())
                                         continue;
                                     if (update.Message.From is null || update.Message.From.IsBot) continue;
-                                    
+
                                     if (await antiSpamService.IsSpammer(update.Message.From.Id)) continue;
                                     if (updates.Count(u => u.Message.From!.Id == update.Message.From.Id) >= 5)
                                     {
                                         await antiSpamService.AddToSpam(update.Message.From.Id);
-                                        await bot.SendMessageAsync(update.Message.From.Id, "Вы были добавлены в спам лист на 2 минуты. Не переживайте, передохните, и попробуйте еще раз");
+                                        await bot.SendMessageAsync(update.Message.From.Id,
+                                            "Вы были добавлены в спам лист на 2 минуты. Не переживайте, передохните, и попробуйте еще раз");
                                         continue;
                                     }
-                                    
+
                                     await commandsService.CommandsValidator(update);
                                     break;
                             }

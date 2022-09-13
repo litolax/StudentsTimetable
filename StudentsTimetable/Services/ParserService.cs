@@ -78,8 +78,8 @@ public class ParserService : IParserService
             var workbook = excelEngine.Excel.Workbooks.Open(stream);
             var firstSheet = workbook.Worksheets["sheet1"];
 
-            firstSheet.InsertColumn(firstSheet.Columns.Length, 3);
-            firstSheet.InsertRow(firstSheet.Rows.Length, 20);
+            firstSheet.InsertColumn(firstSheet.Columns.Length + 1, 3);
+            firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
 
             try
             {
@@ -158,10 +158,11 @@ public class ParserService : IParserService
                             kabinet = firstSheet
                                 .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
                                 .Cells[j + 1]
-                                .DisplayText;
+                                .RichText.Text;
                             lessonName = firstSheet
                                 .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                .Cells[j + 1 - 1].DisplayText;
+                                .Cells[j + 1 - 1]
+                                .RichText.Text;
 
                             if (string.Equals(kabinet, lessonName))
                             {
@@ -187,17 +188,6 @@ public class ParserService : IParserService
                                 Number = lessonIndex
                             });
 
-                            int count = 0;
-                            groupInfo.Lessons.Reverse();
-                            foreach (var lesson in groupInfo.Lessons)
-                            {
-                                if (lesson.Name.Length < 1) count++;
-                                else break;
-                            }
-
-                            groupInfo.Lessons.RemoveRange(0, count);
-                            groupInfo.Lessons.Reverse();
-
                             lessonIndex++;
                         }
 
@@ -205,6 +195,20 @@ public class ParserService : IParserService
                         lastContent = newValue;
                         groupInfos.Add(groupInfo);
                     }
+                }
+
+                foreach (var groupInfo in groupInfos)
+                {
+                    int count = 0;
+                    groupInfo.Lessons.Reverse();
+                    foreach (var lesson in groupInfo.Lessons)
+                    {
+                        if (lesson.Name.Length < 1) count++;
+                        else break;
+                    }
+
+                    groupInfo.Lessons.RemoveRange(0, count);
+                    groupInfo.Lessons.Reverse();
                 }
 
                 for (int i = 0; i < groupTableWithIndexesWithoutSame.Count; i++)
@@ -284,12 +288,33 @@ public class ParserService : IParserService
                         continue;
                     }
 
-                    message += $"Группа: {user.Group}\n\n";
+                    message += $"Группа: *{user.Group}*\n\n";
 
                     foreach (var lesson in groupInfo.Lessons)
                     {
+                        var lessonName = RegexCostyl(lesson.Name).Replace('\n', ' ');
+                        var kabinet = RegexCostyl(lesson.Kabinet).Replace('\n', ' ');
+                        var newlineIndexes = new List<int>();
+                        for (int g = 0; g < lessonName.Length; g++)
+                        {
+                            if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
+                            {
+                                newlineIndexes.Add(g);
+                            }
+                        }
+                    
+                        if (newlineIndexes.Count > 0)
+                        {
+                            foreach (var newlineIndex in newlineIndexes)
+                            {
+                                lessonName = lessonName.Insert(newlineIndex, "\n");
+                            }
+                        }
                         message +=
-                            $"*Пара: №{lesson.Number + 1}*\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                            $"*Пара: №{lesson.Number + 1}*" +
+                            $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
+                            $"\n{(kabinet.Length < 2 ? "-" : ($"Каб: {kabinet}"))}" +
+                            $"\n\n";
                     }
                 }
 
@@ -355,12 +380,33 @@ public class ParserService : IParserService
                     continue;
                 }
 
-                message += $"Группа: {user.Group}\n\n";
+                message += $"Группа: *{user.Group}*\n\n";
 
                 foreach (var lesson in groupInfo.Lessons)
                 {
+                    var lessonName = RegexCostyl(lesson.Name).Replace('\n', ' ');
+                    var kabinet = RegexCostyl(lesson.Kabinet).Replace('\n', ' ');
+                    var newlineIndexes = new List<int>();
+                    for (int g = 0; g < lessonName.Length; g++)
+                    {
+                        if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
+                        {
+                            newlineIndexes.Add(g);
+                        }
+                    }
+                    
+                    if (newlineIndexes.Count > 0)
+                    {
+                        foreach (var newlineIndex in newlineIndexes)
+                        {
+                            lessonName = lessonName.Insert(newlineIndex, "\n");
+                        }
+                    }
                     message +=
-                        $"*Пара: №{lesson.Number + 1}*\n{RegexCostyl(lesson.Name).Replace('\n', ' ')}\nКаб: {RegexCostyl(lesson.Kabinet)}\n\n";
+                        $"*Пара: №{lesson.Number + 1}*" +
+                        $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
+                        $"\n{(kabinet.Length < 2 ? "-" : ($"Каб: {kabinet}"))}" +
+                        $"\n\n";
                 }
             }
 
