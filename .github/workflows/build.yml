@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: dotnet restore
       - name: Build
-        run: dotnet publish -c release -r ubuntu.16.04-x64 --output Artifacts
+        run: dotnet publish -c release -r ubuntu.21.04-x64 --output StudentsTimetable/Artifacts
       - name: Test
         run: dotnet test --no-restore --verbosity normal
       - name: Upload dotnet test results
@@ -35,5 +35,5 @@ jobs:
         uses: actions/upload-artifact@v2.2.2
         with:
           name: build
-          path: Artifacts/**
+          path: StudentsTimetable/Artifacts/**
           if-no-files-found: error
