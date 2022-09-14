@@ -25,25 +25,27 @@ namespace StudentsTimetable
                 .AddSingleton<IInterfaceService, InterfaceService>()
                 .AddSingleton<IAccountService, AccountService>()
                 .AddSingleton<IAntiSpamService, AntiSpamService>()
+                .AddSingleton<IWebSocketService, WebSocketService>()
                 .AddSingleton(typeof(IConfig<>), typeof(Config<>))
                 .BuildServiceProvider(true);
 
             var parserService = serviceProvider.GetService<IParserService>();
             var commandsService = serviceProvider.GetService<ICommandsService>();
             var antiSpamService = serviceProvider.GetService<IAntiSpamService>();
+            var webSocketService = serviceProvider.GetService<IWebSocketService>();
 
-            if (commandsService is null || parserService is null || antiSpamService is null) return;
+            if (commandsService is null || parserService is null || antiSpamService is null ||
+                webSocketService is null) return;
+
             await parserService.ParseDayTimetables();
             await parserService.ParseWeekTimetables();
+            webSocketService.Connect();
 
             var mainConfig = new Config<MainConfig>();
             var bot = new BotClient(mainConfig.Entries.Token);
             var updates = await bot.GetUpdatesAsync();
-            bot.SetMyCommands(new[]
-            {
-                new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь"),
-                new BotCommand("menu", "Открыть меню"), new BotCommand("tos", "Пользовательское соглашение")
-            });
+            bot.SetMyCommands(new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь"),
+                new BotCommand("menu", "Открыть меню"), new BotCommand("tos", "Пользовательское соглашение"));
 
             Console.WriteLine("Bot started!");
 
