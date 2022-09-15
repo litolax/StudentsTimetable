@@ -35,6 +35,7 @@ public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
     public static bool ParseResult;
+
     public List<string> Groups { get; set; } = new()
     {
         "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
@@ -46,11 +47,11 @@ public class ParserService : IParserService
     public ParserService(IMongoService mongoService)
     {
         this._mongoService = mongoService;
-        var parseDayTimer = new Timer(300000)
+        var parseDayTimer = new Timer(10000)
         {
             AutoReset = true, Enabled = true
         };
-        parseDayTimer.Elapsed += async (sender, args) => { await this.ParseDayTimetables(); };
+        parseDayTimer.Elapsed += async (sender, args) => { await this.NewTimetableCheck(); };
 
         var parseWeekTimer = new Timer(2000000)
         {
@@ -62,7 +63,8 @@ public class ParserService : IParserService
     public async Task ParseDayTimetables()
     {
         ParseResult = false;
-        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+            .First();
         if (!parseInfo.ParseAllowed) return;
         List<Day> Days = new List<Day>();
         List<GroupInfo> groupInfos = new List<GroupInfo>();
@@ -77,7 +79,8 @@ public class ParserService : IParserService
 
         var excelEngine = new ExcelEngine();
 
-        await using (var stream = File.Open(parseInfo.LoadFixFile ? "./fix.xlsx" : "./timetable.xlsx", FileMode.Open, FileAccess.ReadWrite))
+        await using (var stream = File.Open(parseInfo.LoadFixFile ? "./fix.xlsx" : "./timetable.xlsx", FileMode.Open,
+                         FileAccess.ReadWrite))
         {
             var workbook = excelEngine.Excel.Workbooks.Open(stream);
             var firstSheet = workbook.Worksheets["sheet1"];
@@ -308,7 +311,7 @@ public class ParserService : IParserService
                                 newlineIndexes.Add(g);
                             }
                         }
-                    
+
                         if (newlineIndexes.Count > 0)
                         {
                             foreach (var newlineIndex in newlineIndexes)
@@ -316,6 +319,7 @@ public class ParserService : IParserService
                                 lessonName = lessonName.Insert(newlineIndex, "\n");
                             }
                         }
+
                         message +=
                             $"*Пара: №{lesson.Number + 1}*" +
                             $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
@@ -400,7 +404,7 @@ public class ParserService : IParserService
                             newlineIndexes.Add(g);
                         }
                     }
-                    
+
                     if (newlineIndexes.Count > 0)
                     {
                         foreach (var newlineIndex in newlineIndexes)
@@ -408,6 +412,7 @@ public class ParserService : IParserService
                             lessonName = lessonName.Insert(newlineIndex, "\n");
                         }
                     }
+
                     message +=
                         $"*Пара: №{lesson.Number + 1}*" +
                         $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
@@ -423,7 +428,9 @@ public class ParserService : IParserService
                     await File.WriteAllTextAsync("./logs.txt",
                         await File.ReadAllTextAsync("./logs.txt") +
                         $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
-                else await File.WriteAllTextAsync("./logs.txt", $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
+                else
+                    await File.WriteAllTextAsync("./logs.txt",
+                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
             }
             catch (Exception e)
             {
@@ -434,7 +441,6 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
-        ParseResult = false;
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
         var web = new HtmlWeb();
         var doc = web.Load(url);
@@ -487,8 +493,6 @@ public class ParserService : IParserService
             });
             await this.SendNotificationsAboutWeekTimetable();
         }
-
-        ParseResult = true;
     }
 
     public async Task SendWeekTimetable(User telegramUser)
@@ -527,7 +531,9 @@ public class ParserService : IParserService
                     await File.WriteAllTextAsync("./logs.txt",
                         await File.ReadAllTextAsync("./logs.txt") +
                         $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
-                else await File.WriteAllTextAsync("./logs.txt", $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
+                else
+                    await File.WriteAllTextAsync("./logs.txt",
+                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
             }
             catch (Exception e)
             {
@@ -572,5 +578,63 @@ public class ParserService : IParserService
     private static string RegexCostyl(string input)
     {
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
+    }
+
+    private async Task NewTimetableCheck()
+    {
+        #region Parse
+
+        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
+        var web = new HtmlWeb();
+        var doc = web.Load(url);
+
+        var tableToExcel = new HtmlTableToExcel.HtmlTableToExcel();
+        byte[] converted = tableToExcel.Process(doc.Text);
+        var obj = ByteArrayToObject(converted);
+        obj.SaveAs(new FileInfo("./timetable.xlsx"));
+
+        var excelEngine = new ExcelEngine();
+
+        await using (var stream = File.Open("./timetable.xlsx", FileMode.Open, FileAccess.ReadWrite))
+        {
+            var workbook = excelEngine.Excel.Workbooks.Open(stream);
+            var firstSheet = workbook.Worksheets["sheet1"];
+
+            firstSheet.InsertColumn(firstSheet.Columns.Length + 1, 3);
+            firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
+
+
+            var dates =
+                new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
+            for (int i = 0; i < firstSheet.Rows.Length; i++)
+            {
+                var newValue = RegexCostyl(firstSheet.Rows[i].Cells[0].Value);
+                if ((!newValue.Contains("День")) ||
+                    dates.ContainsValue(newValue)) continue;
+
+                dates.Add(i, newValue);
+            }
+        }
+
+        #endregion
+        
+        bool hasNewTimetables = false;
+        var timetablesCollection = this._mongoService.Database.GetCollection<Day>("DayTimetables");
+        var dbTables = (await timetablesCollection.FindAsync(table => true)).ToList();
+
+        if (this.Timetables is null) return;
+        this.Timetables.ForEach(t =>
+        {
+            if (!dbTables.Exists(table => table.Date == t.Date))
+            {
+                timetablesCollection.InsertOneAsync(t);
+                hasNewTimetables = true;
+            }
+        });
+
+        if (hasNewTimetables)
+        {
+            await this.ParseDayTimetables();
+        }
     }
 }

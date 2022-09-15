@@ -139,6 +139,7 @@ namespace StudentsTimetable.Services
                 info.ParseAllowed = true;
                 var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, true);
                 await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+                await this._parserService.ParseDayTimetables();
             }
 
             if (update.Message.Text!.ToLower().Contains("/unload") && update.Message.From!.Id == 698346968)
