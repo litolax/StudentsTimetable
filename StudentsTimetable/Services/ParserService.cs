@@ -33,7 +33,7 @@ public interface IParserService
 public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
-
+    public static bool ParseResult;
     public List<string> Groups { get; set; } = new()
     {
         "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
@@ -60,6 +60,7 @@ public class ParserService : IParserService
 
     public async Task ParseDayTimetables()
     {
+        ParseResult = false;
         List<Day> Days = new List<Day>();
         List<GroupInfo> groupInfos = new List<GroupInfo>();
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
@@ -248,6 +249,8 @@ public class ParserService : IParserService
         {
             await this.SendNewDayTimetables();
         }
+
+        ParseResult = true;
     }
 
     public async Task SendNewDayTimetables()
@@ -428,6 +431,7 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
+        ParseResult = false;
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
         var web = new HtmlWeb();
         var doc = web.Load(url);
@@ -480,6 +484,8 @@ public class ParserService : IParserService
             });
             await this.SendNotificationsAboutWeekTimetable();
         }
+
+        ParseResult = true;
     }
 
     public async Task SendWeekTimetable(User telegramUser)
