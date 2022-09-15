@@ -1,4 +1,4 @@
-const socket = new WebSocket("ws://s2.zloserver.com:41065/healthCheck/students/bot");
+const socket = new WebSocket("wss://s2.zloserver.com:41065/healthCheck/students/bot");
 let elem = document.getElementById('text')
 
 socket.onmessage = (event) => {
