@@ -1,4 +1,5 @@
-﻿using StudentsTimetable.Config;
+﻿using MongoDB.Driver;
+using StudentsTimetable.Config;
 using StudentsTimetable.Models;
 using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
@@ -124,6 +125,40 @@ namespace StudentsTimetable.Services
             if (update.Message.Text!.ToLower().Contains("/sayall") && update.Message.From!.Id == 698346968)
                 await this._interfaceService.NotifyAllUsers(update);
 
+            if (update.Message.Text!.ToLower().Contains("/stopparse") && update.Message.From!.Id == 698346968)
+            {
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                info.ParseAllowed = false;
+                var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, false);
+                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+            }
+
+            if (update.Message.Text!.ToLower().Contains("/startparse") && update.Message.From!.Id == 698346968)
+            {
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                info.ParseAllowed = true;
+                var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, true);
+                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+            }
+
+            if (update.Message.Text!.ToLower().Contains("/unload") && update.Message.From!.Id == 698346968)
+            {
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                info.LoadFixFile = false;
+                var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, false);
+                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+            }
+
+            if (update.Message.Text!.ToLower().Contains("/load") && update.Message.From!.Id == 698346968)
+            {
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                info.LoadFixFile = true;
+                var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, true);
+                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+            }
+
+            if (update.Message.Text!.ToLower().Contains("/notify") && update.Message.From!.Id == 698346968)
+                await this._parserService.SendNewDayTimetables();
         }
     }
 }

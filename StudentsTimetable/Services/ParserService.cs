@@ -28,6 +28,7 @@ public interface IParserService
     Task ParseDayTimetables();
     Task SendWeekTimetable(User telegramUser);
     Task SendDayTimetable(User telegramUser);
+    Task SendNewDayTimetables();
 }
 
 public class ParserService : IParserService
@@ -61,6 +62,8 @@ public class ParserService : IParserService
     public async Task ParseDayTimetables()
     {
         ParseResult = false;
+        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+        if (!parseInfo.ParseAllowed) return;
         List<Day> Days = new List<Day>();
         List<GroupInfo> groupInfos = new List<GroupInfo>();
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
@@ -74,7 +77,7 @@ public class ParserService : IParserService
 
         var excelEngine = new ExcelEngine();
 
-        await using (var stream = File.Open("./timetable.xlsx", FileMode.Open, FileAccess.ReadWrite))
+        await using (var stream = File.Open(parseInfo.LoadFixFile ? "./fix.xlsx" : "./timetable.xlsx", FileMode.Open, FileAccess.ReadWrite))
         {
             var workbook = excelEngine.Excel.Workbooks.Open(stream);
             var firstSheet = workbook.Worksheets["sheet1"];
