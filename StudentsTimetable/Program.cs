@@ -39,8 +39,8 @@ namespace StudentsTimetable
 
             try
             {
-               // await parserService.ParseDayTimetables();
-               // await parserService.ParseWeekTimetables();
+                await parserService.ParseDayTimetables();
+                await parserService.ParseWeekTimetables();
             }
             catch (Exception e)
             {
