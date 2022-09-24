@@ -19,7 +19,8 @@ namespace StudentsTimetable.Services
         private readonly IParserService _parserService;
         private readonly IMongoService _mongoService;
 
-        public CommandsService(IInterfaceService interfaceService, IAccountService accountService, IParserService parserService, IMongoService mongoService)
+        public CommandsService(IInterfaceService interfaceService, IAccountService accountService,
+            IParserService parserService, IMongoService mongoService)
         {
             this._interfaceService = interfaceService;
             this._accountService = accountService;
@@ -35,8 +36,8 @@ namespace StudentsTimetable.Services
                 var result = await this._accountService.ChangeGroup(update.Message.From!, update.Message.Text);
                 if (result) this._mongoService.RemoveState(update.Message.Chat.Id);
             }
-            
-            
+
+
             switch (update.Message.Text)
             {
                 case "/start":
@@ -53,6 +54,7 @@ namespace StudentsTimetable.Services
                     {
                         Console.WriteLine(e);
                     }
+
                     break;
                 }
                 case "/menu":
@@ -79,6 +81,7 @@ namespace StudentsTimetable.Services
                     {
                         Console.WriteLine(e);
                     }
+
                     break;
                 }
                 case "🎰Посмотреть расписание на день🎰":
@@ -106,6 +109,7 @@ namespace StudentsTimetable.Services
                     {
                         Console.WriteLine(e);
                     }
+
                     break;
                 }
                 case "💳Подписаться на рассылку💳":
@@ -127,35 +131,43 @@ namespace StudentsTimetable.Services
 
             if (update.Message.Text!.ToLower().Contains("/stopparse") && update.Message.From!.Id == 698346968)
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+                    .First();
                 info.ParseAllowed = false;
                 var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, false);
-                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+                await this._mongoService.Database.GetCollection<Info>("Info")
+                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
             }
 
             if (update.Message.Text!.ToLower().Contains("/startparse") && update.Message.From!.Id == 698346968)
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+                    .First();
                 info.ParseAllowed = true;
                 var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, true);
-                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+                await this._mongoService.Database.GetCollection<Info>("Info")
+                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
                 await this._parserService.ParseDayTimetables();
             }
 
             if (update.Message.Text!.ToLower().Contains("/unload") && update.Message.From!.Id == 698346968)
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+                    .First();
                 info.LoadFixFile = false;
                 var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, false);
-                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+                await this._mongoService.Database.GetCollection<Info>("Info")
+                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
             }
 
             if (update.Message.Text!.ToLower().Contains("/load") && update.Message.From!.Id == 698346968)
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList().First();
+                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+                    .First();
                 info.LoadFixFile = true;
                 var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, true);
-                await this._mongoService.Database.GetCollection<Info>("Info").UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
+                await this._mongoService.Database.GetCollection<Info>("Info")
+                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
             }
 
             if (update.Message.Text!.ToLower().Contains("/notify") && update.Message.From!.Id == 698346968)

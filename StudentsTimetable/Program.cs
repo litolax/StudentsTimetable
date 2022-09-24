@@ -37,8 +37,16 @@ namespace StudentsTimetable
             if (commandsService is null || parserService is null || antiSpamService is null ||
                 webSocketService is null) return;
 
-            await parserService.ParseDayTimetables();
-            await parserService.ParseWeekTimetables();
+            try
+            {
+               // await parserService.ParseDayTimetables();
+               // await parserService.ParseWeekTimetables();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
             webSocketService.Connect();
 
             var mainConfig = new Config<MainConfig>();

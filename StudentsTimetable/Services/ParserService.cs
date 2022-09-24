@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using OfficeOpenXml;
 using OpenQA.Selenium;
@@ -47,6 +48,7 @@ public class ParserService : IParserService
     public ParserService(IMongoService mongoService)
     {
         this._mongoService = mongoService;
+
         var parseDayTimer = new Timer(10000)
         {
             AutoReset = true, Enabled = true
@@ -96,21 +98,21 @@ public class ParserService : IParserService
                     new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var newValue = RegexCostyl(firstSheet.Rows[i].Cells[0].Value);
-                    if ((!newValue.Contains("День")) ||
-                        groupTableWithIndexesWithoutSame.ContainsValue(newValue)) continue;
+                    var parsedValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
+                    if ((!parsedValue.Contains("День")) ||
+                        groupTableWithIndexesWithoutSame.ContainsValue(parsedValue)) continue;
 
-                    groupTableWithIndexesWithoutSame.Add(i, newValue);
+                    groupTableWithIndexesWithoutSame.Add(i, parsedValue);
                 }
 
                 var groupTableWithIndexesWithSame =
                     new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var newValue = RegexCostyl(firstSheet.Rows[i].Cells[0].Value);
-                    if (!newValue.Contains("День")) continue;
+                    var parsedValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
+                    if (!parsedValue.Contains("День")) continue;
 
-                    groupTableWithIndexesWithSame.Add(i, newValue);
+                    groupTableWithIndexesWithSame.Add(i, parsedValue);
                 }
 
                 #endregion
@@ -118,10 +120,10 @@ public class ParserService : IParserService
                 #region ParseLessonsIndexes
 
                 var startLessonsIndexes =
-                    new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
+                    new Dictionary<int, string>(); //парсим тут пары
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var newValue = RegexCostyl(firstSheet.Rows[i].Cells[0].Value);
+                    var newValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
                     if (!newValue.Contains("Дисциплина")) continue;
 
                     startLessonsIndexes.Add(i, newValue);
@@ -140,17 +142,16 @@ public class ParserService : IParserService
                          j++)
                     {
                         string lessonName = string.Empty;
-                        string kabinet = string.Empty;
+                        string cabinet = string.Empty;
                         var groupInfo = new GroupInfo();
                         int lessonIndex = 0;
 
-                        var newValue = firstSheet.Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1].Cells[j]
+                        var parsedValue = firstSheet.Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1].Cells[j]
                             .DisplayText;
-                        if (string.Equals(lastContent, newValue)) continue;
-
-                        Console.WriteLine(newValue);
+                        if (string.Equals(lastContent, parsedValue)) continue;
+                        
                         groupInfo.Date = groupTableWithIndexesWithSame.Values.ToList()[i];
-                        groupInfo.Number = int.Parse(newValue);
+                        groupInfo.Number = int.Parse(parsedValue);
                         //сверху мы спарсили саму группу
 
                         int lessonsCount;
@@ -162,7 +163,7 @@ public class ParserService : IParserService
 
                         for (int h = 0; h < lessonsCount; h++)
                         {
-                            kabinet = firstSheet
+                            cabinet = firstSheet
                                 .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
                                 .Cells[j + 1]
                                 .RichText.Text;
@@ -171,13 +172,13 @@ public class ParserService : IParserService
                                 .Cells[j + 1 - 1]
                                 .RichText.Text;
 
-                            if (string.Equals(kabinet, lessonName))
+                            if (string.Equals(cabinet, lessonName))
                             {
                                 int index = 1;
-                                while (string.Equals(kabinet, lessonName) && kabinet.Length > 1 &&
+                                while (string.Equals(cabinet, lessonName) && cabinet.Length > 1 &&
                                        lessonName.Length > 1)
                                 {
-                                    kabinet = firstSheet
+                                    cabinet = firstSheet
                                         .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
                                         .Cells[j + 1 + index].DisplayText;
                                     lessonName = firstSheet
@@ -189,8 +190,8 @@ public class ParserService : IParserService
 
                             groupInfo.Lessons.Add(new Lesson()
                             {
-                                Group = newValue,
-                                Kabinet = kabinet,
+                                Group = parsedValue,
+                                Cabinet = cabinet,
                                 Name = lessonName,
                                 Number = lessonIndex
                             });
@@ -199,7 +200,7 @@ public class ParserService : IParserService
                         }
 
                         //обновили инфу, идем дальше
-                        lastContent = newValue;
+                        lastContent = parsedValue;
                         groupInfos.Add(groupInfo);
                     }
                 }
@@ -301,8 +302,8 @@ public class ParserService : IParserService
 
                     foreach (var lesson in groupInfo.Lessons)
                     {
-                        var lessonName = RegexCostyl(lesson.Name).Replace('\n', ' ');
-                        var kabinet = RegexCostyl(lesson.Kabinet).Replace('\n', ' ');
+                        var lessonName = HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+                        var cabinet = HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
                         var newlineIndexes = new List<int>();
                         for (int g = 0; g < lessonName.Length; g++)
                         {
@@ -323,7 +324,7 @@ public class ParserService : IParserService
                         message +=
                             $"*Пара: №{lesson.Number + 1}*" +
                             $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-                            $"\n{(kabinet.Length < 2 ? "-" : ($"Каб: {kabinet}"))}" +
+                            $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
                             $"\n\n";
                     }
                 }
@@ -394,8 +395,8 @@ public class ParserService : IParserService
 
                 foreach (var lesson in groupInfo.Lessons)
                 {
-                    var lessonName = RegexCostyl(lesson.Name).Replace('\n', ' ');
-                    var kabinet = RegexCostyl(lesson.Kabinet).Replace('\n', ' ');
+                    var lessonName = HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+                    var cabinet = HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
                     var newlineIndexes = new List<int>();
                     for (int g = 0; g < lessonName.Length; g++)
                     {
@@ -416,7 +417,7 @@ public class ParserService : IParserService
                     message +=
                         $"*Пара: №{lesson.Number + 1}*" +
                         $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-                        $"\n{(kabinet.Length < 2 ? "-" : ($"Каб: {kabinet}"))}" +
+                        $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
                         $"\n\n";
                 }
             }
@@ -568,20 +569,22 @@ public class ParserService : IParserService
 
     private static ExcelPackage ByteArrayToObject(byte[] arrBytes)
     {
-        using (MemoryStream memStream = new MemoryStream(arrBytes))
+        using (var memStream = new MemoryStream(arrBytes))
         {
-            ExcelPackage package = new ExcelPackage(memStream);
+            var package = new ExcelPackage(memStream);
             return package;
         }
     }
 
-    private static string RegexCostyl(string input)
+    private static string HtmlTagsFix(string input)
     {
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
     }
 
     private async Task NewTimetableCheck()
     {
+        var dates = new Dictionary<int, string>();
+
         #region Parse
 
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
@@ -604,11 +607,11 @@ public class ParserService : IParserService
             firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
 
 
-            var dates =
+            dates =
                 new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
             for (int i = 0; i < firstSheet.Rows.Length; i++)
             {
-                var newValue = RegexCostyl(firstSheet.Rows[i].Cells[0].Value);
+                var newValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
                 if ((!newValue.Contains("День")) ||
                     dates.ContainsValue(newValue)) continue;
 
@@ -617,20 +620,23 @@ public class ParserService : IParserService
         }
 
         #endregion
-        
+
         bool hasNewTimetables = false;
         var timetablesCollection = this._mongoService.Database.GetCollection<Day>("DayTimetables");
         var dbTables = (await timetablesCollection.FindAsync(table => true)).ToList();
 
-        if (this.Timetables is null) return;
-        this.Timetables.ForEach(t =>
+        foreach (var data in dates.Values)
         {
-            if (!dbTables.Exists(table => table.Date == t.Date))
+            if (!dbTables.Exists(table => table.Date == data))
             {
-                timetablesCollection.InsertOneAsync(t);
+                await timetablesCollection.InsertOneAsync(new Day()
+                {
+                    Id = ObjectId.GenerateNewId(),
+                    Date = data
+                });
                 hasNewTimetables = true;
             }
-        });
+        }
 
         if (hasNewTimetables)
         {
