@@ -72,16 +72,16 @@ namespace StudentsTimetable
                                         continue;
                                     if (update.Message.From is null || update.Message.From.IsBot) continue;
 
-                                    if (await antiSpamService.IsSpammer(update.Message.From.Id)) continue;
+                                    if (antiSpamService.IsSpammer(update.Message.From.Id)) continue;
                                     if (updates.Count(u => u.Message.From!.Id == update.Message.From.Id) >= 5)
                                     {
-                                        await antiSpamService.AddToSpam(update.Message.From.Id);
-                                        await bot.SendMessageAsync(update.Message.From.Id,
+                                        antiSpamService.AddToSpam(update.Message.From.Id);
+                                        bot.SendMessage(update.Message.From.Id,
                                             "Вы были добавлены в спам лист на 2 минуты. Не переживайте, передохните, и попробуйте еще раз");
                                         continue;
                                     }
 
-                                    await commandsService.CommandsValidator(update);
+                                    commandsService.CommandsValidator(update);
                                     break;
                             }
                         }

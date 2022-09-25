@@ -43,7 +43,7 @@ public class ParserService : IParserService
         "66", "67", "68", "71", "72", "73", "74", "75", "76", "77", "78"
     };
 
-    public List<Day>? Timetables { get; set; } = new();
+    public List<Day> Timetables { get; set; } = new();
 
     public ParserService(IMongoService mongoService)
     {
@@ -231,7 +231,7 @@ public class ParserService : IParserService
                     });
                 }
 
-                this.Timetables = Days;
+                lock (this.Timetables) this.Timetables = Days;
             }
             catch (Exception e)
             {
@@ -271,7 +271,7 @@ public class ParserService : IParserService
         foreach (var user in users)
         {
             if (!user.Notifications || user.Group is null) continue;
-            if (this.Timetables is null)
+            if (this.Timetables.Count < 1)
             {
                 try
                 {
@@ -364,7 +364,7 @@ public class ParserService : IParserService
             return;
         }
 
-        if (this.Timetables is null)
+        if (this.Timetables.Count < 1)
         {
             try
             {

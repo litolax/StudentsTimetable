@@ -5,8 +5,8 @@ namespace StudentsTimetable.Services
 {
     public interface IAntiSpamService
     {
-        Task AddToSpam(long userId);
-        Task<bool> IsSpammer(long userId);
+        void AddToSpam(long userId);
+        bool IsSpammer(long userId);
     }
 
     public class AntiSpamService : IAntiSpamService
@@ -16,10 +16,10 @@ namespace StudentsTimetable.Services
 
         public AntiSpamService()
         {
-            this._timer.Elapsed += ValidationSpammersTimeout;
+            this._timer.Elapsed += this.ValidationSpammersTimeout;
         }
 
-        private void ValidationSpammersTimeout(object sender, ElapsedEventArgs e)
+        private void ValidationSpammersTimeout(object? sender, ElapsedEventArgs e)
         {
             foreach (var (spammerId, timeoutTime) in this.Spammers)
             {
@@ -27,16 +27,15 @@ namespace StudentsTimetable.Services
             }
         }
 
-        public Task AddToSpam(long userId)
+        public void AddToSpam(long userId)
         {
-            if (this.Spammers.ContainsKey(userId)) return Task.CompletedTask;
+            if (this.Spammers.ContainsKey(userId)) return;
             this.Spammers.Add(userId, DateTime.UtcNow);
-            return Task.CompletedTask;
         }
 
-        public Task<bool> IsSpammer(long userId)
+        public bool IsSpammer(long userId)
         {
-            return Task.FromResult(this.Spammers.ContainsKey(userId));
+            return this.Spammers.ContainsKey(userId);
         }
     }
 }

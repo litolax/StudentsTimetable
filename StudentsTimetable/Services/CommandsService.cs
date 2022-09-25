@@ -9,7 +9,7 @@ namespace StudentsTimetable.Services
 {
     public interface ICommandsService
     {
-        Task CommandsValidator(Update update);
+        void CommandsValidator(Update update);
     }
 
     public class CommandsService : ICommandsService
@@ -28,7 +28,7 @@ namespace StudentsTimetable.Services
             this._mongoService = mongoService;
         }
 
-        public async Task CommandsValidator(Update update)
+        public async void CommandsValidator(Update update)
         {
             var lastState = await this._mongoService.GetLastState(update.Message.Chat.Id);
             if (lastState is not null && lastState == "changeGroup")
