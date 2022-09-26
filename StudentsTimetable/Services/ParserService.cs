@@ -620,25 +620,11 @@ public class ParserService : IParserService
         }
 
         #endregion
-
-        bool hasNewTimetables = false;
+        
         var timetablesCollection = this._mongoService.Database.GetCollection<Day>("DayTimetables");
         var dbTables = (await timetablesCollection.FindAsync(table => true)).ToList();
 
-        foreach (var data in dates.Values)
-        {
-            if (!dbTables.Exists(table => table.Date == data))
-            {
-                await timetablesCollection.InsertOneAsync(new Day()
-                {
-                    Id = ObjectId.GenerateNewId(),
-                    Date = data
-                });
-                hasNewTimetables = true;
-            }
-        }
-
-        if (hasNewTimetables)
+        foreach (var data in dates.Values.Where(data => !dbTables.Exists(table => table.Date == data)))
         {
             await this.ParseDayTimetables();
         }
