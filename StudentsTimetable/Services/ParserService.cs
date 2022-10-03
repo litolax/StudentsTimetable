@@ -2,7 +2,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using OfficeOpenXml;
 using OpenQA.Selenium;
@@ -36,6 +35,8 @@ public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
     public static bool ParseResult;
+    private string LastDayHtmlContent { get; set; }
+    private string LastWeekHtmlContent { get; set; }
 
     public List<string> Groups { get; set; } = new()
     {
@@ -53,13 +54,13 @@ public class ParserService : IParserService
         {
             AutoReset = true, Enabled = true
         };
-        parseDayTimer.Elapsed += async (sender, args) => { await this.NewTimetableCheck(); };
+        parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
 
-        var parseWeekTimer = new Timer(2000000)
+        var parseWeekTimer = new Timer(10000)
         {
             AutoReset = true, Enabled = true
         };
-        parseWeekTimer.Elapsed += async (sender, args) => { await this.ParseWeekTimetables(); };
+        parseWeekTimer.Elapsed += async (sender, args) => { await this.NewWeekTimetableCheck(); };
     }
 
     public async Task ParseDayTimetables()
@@ -73,6 +74,7 @@ public class ParserService : IParserService
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
         var web = new HtmlWeb();
         var doc = web.Load(url);
+        this.LastDayHtmlContent = doc.DocumentNode.InnerHtml;
 
         var tableToExcel = new HtmlTableToExcel.HtmlTableToExcel();
         byte[] converted = tableToExcel.Process(doc.Text);
@@ -445,6 +447,8 @@ public class ParserService : IParserService
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
         var web = new HtmlWeb();
         var doc = web.Load(url);
+        
+        this.LastWeekHtmlContent = doc.DocumentNode.InnerHtml;
 
         var students = doc.DocumentNode.SelectNodes("//h2");
         if (students is null) return;
@@ -581,52 +585,23 @@ public class ParserService : IParserService
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
     }
 
-    private async Task NewTimetableCheck()
+    private async Task NewDayTimetableCheck()
     {
-        var dates = new Dictionary<int, string>();
-
-        #region Parse
-
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
         var web = new HtmlWeb();
         var doc = web.Load(url);
+        if (this.LastDayHtmlContent == doc.DocumentNode.InnerHtml) return;
 
-        var tableToExcel = new HtmlTableToExcel.HtmlTableToExcel();
-        byte[] converted = tableToExcel.Process(doc.Text);
-        var obj = ByteArrayToObject(converted);
-        obj.SaveAs(new FileInfo("./timetable.xlsx"));
+        await this.ParseDayTimetables();
+    }
+    
+    private async Task NewWeekTimetableCheck()
+    {
+        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
+        var web = new HtmlWeb();
+        var doc = web.Load(url);
+        if (this.LastWeekHtmlContent == doc.DocumentNode.InnerHtml) return;
 
-        var excelEngine = new ExcelEngine();
-
-        await using (var stream = File.Open("./timetable.xlsx", FileMode.Open, FileAccess.ReadWrite))
-        {
-            var workbook = excelEngine.Excel.Workbooks.Open(stream);
-            var firstSheet = workbook.Worksheets["sheet1"];
-
-            firstSheet.InsertColumn(firstSheet.Columns.Length + 1, 3);
-            firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
-
-
-            dates =
-                new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
-            for (int i = 0; i < firstSheet.Rows.Length; i++)
-            {
-                var newValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
-                if ((!newValue.Contains("День")) ||
-                    dates.ContainsValue(newValue)) continue;
-
-                dates.Add(i, newValue);
-            }
-        }
-
-        #endregion
-        
-        var timetablesCollection = this._mongoService.Database.GetCollection<Day>("DayTimetables");
-        var dbTables = (await timetablesCollection.FindAsync(table => true)).ToList();
-
-        foreach (var data in dates.Values.Where(data => !dbTables.Exists(table => table.Date == data)))
-        {
-            await this.ParseDayTimetables();
-        }
+        await this.ParseWeekTimetables();
     }
 }
