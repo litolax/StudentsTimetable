@@ -1,15 +1,11 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Text.RegularExpressions;
+﻿using System.Reflection;
 using HtmlAgilityPack;
 using MongoDB.Driver;
-using OfficeOpenXml;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using StudentsTimetable.Config;
 using StudentsTimetable.Models;
@@ -19,7 +15,6 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using File = System.IO.File;
-using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -49,8 +44,7 @@ public class ParserService : IParserService
     {
         "7", "8", "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64",
         "65",
-        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "156", "157", "160", "161", "162",
-        "163", "164"
+        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78"
     };
 
     public List<Day> Timetables { get; set; } = new();
@@ -87,7 +81,7 @@ public class ParserService : IParserService
 
         var tableToExcel = new HtmlTableToExcel.HtmlTableToExcel();
         byte[] converted = tableToExcel.Process(doc.Text);
-        var obj = ByteArrayToObject(converted);
+        var obj = Utils.ByteArrayToObject(converted);
         obj.SaveAs(new FileInfo("./timetable.xlsx"));
 
         var excelEngine = new ExcelEngine();
@@ -109,7 +103,7 @@ public class ParserService : IParserService
                     new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var parsedValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
+                    var parsedValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
                     if ((!parsedValue.Contains("День")) ||
                         groupTableWithIndexesWithoutSame.ContainsValue(parsedValue)) continue;
 
@@ -120,7 +114,7 @@ public class ParserService : IParserService
                     new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var parsedValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
+                    var parsedValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
                     if (!parsedValue.Contains("День")) continue;
 
                     groupTableWithIndexesWithSame.Add(i, parsedValue);
@@ -134,7 +128,7 @@ public class ParserService : IParserService
                     new Dictionary<int, string>(); //парсим тут пары
                 for (int i = 0; i < firstSheet.Rows.Length; i++)
                 {
-                    var newValue = HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
+                    var newValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
                     if (!newValue.Contains("Дисциплина")) continue;
 
                     startLessonsIndexes.Add(i, newValue);
@@ -313,8 +307,8 @@ public class ParserService : IParserService
 
                     foreach (var lesson in groupInfo.Lessons)
                     {
-                        var lessonName = HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-                        var cabinet = HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+                        var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+                        var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
                         var newlineIndexes = new List<int>();
                         for (int g = 0; g < lessonName.Length; g++)
                         {
@@ -406,8 +400,8 @@ public class ParserService : IParserService
 
                 foreach (var lesson in groupInfo.Lessons)
                 {
-                    var lessonName = HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-                    var cabinet = HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+                    var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+                    var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
                     var newlineIndexes = new List<int>();
                     for (int g = 0; g < lessonName.Length; g++)
                     {
@@ -443,7 +437,7 @@ public class ParserService : IParserService
             }
         }
     }
-    
+
     public async Task ParseWeekTimetables()
     {
         var web = new HtmlWeb();
@@ -464,35 +458,30 @@ public class ParserService : IParserService
         options.AddArgument("--no-sandbox");
 
         var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
-        driver.Manage().Window.Size = new Size(1920, 1250);
 
         foreach (var group in Groups)
         {
             var filePath = $"./photo/Группа - {group}.png";
-            
+
             driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
 
-            var container = driver.FindElement(By.ClassName("main"));
-            driver.ExecuteScript("arguments[0].style='width: 100%'", container);
+            Utils.ModifyUnnecessaryElementsOnWebsite(ref driver);
 
             var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
             if (element == default) continue;
-            
+
             var actions = new Actions(driver);
             actions.MoveToElement(element).Perform();
 
-            actions.ScrollByAmount(0, 325).Perform();
-
             var screenshot = (driver as ITakesScreenshot).GetScreenshot();
             screenshot.SaveAsFile(filePath, ScreenshotImageFormat.Png);
-            
+
             var image = await Image.LoadAsync(filePath);
-        
+
             image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
             await image.SaveAsPngAsync(filePath);
         }
-
-
+        
         driver.Close();
         driver.Quit();
 
@@ -529,8 +518,17 @@ public class ParserService : IParserService
             return;
         }
 
-        
-        var image = await Image.LoadAsync($"./photo/Группа - {user.Group}.png");
+
+        Image? image;
+        try
+        {
+            image = await Image.LoadAsync($"./photo/Группа - {user.Group}.png");
+        }
+        catch
+        {
+            await bot.SendMessageAsync(user.UserId, "Увы, данная группа не найдена");
+            return;
+        }
 
         using (var ms = new MemoryStream())
         {
@@ -538,7 +536,8 @@ public class ParserService : IParserService
 
             try
             {
-                await bot.SendPhotoAsync(user.UserId, new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png"));
+                await bot.SendPhotoAsync(user.UserId,
+                    new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png"));
             }
             catch (Exception e)
             {
@@ -569,20 +568,6 @@ public class ParserService : IParserService
                 Console.WriteLine(e);
             }
         }
-    }
-
-    private static ExcelPackage ByteArrayToObject(byte[] arrBytes)
-    {
-        using (var memStream = new MemoryStream(arrBytes))
-        {
-            var package = new ExcelPackage(memStream);
-            return package;
-        }
-    }
-
-    private static string HtmlTagsFix(string input)
-    {
-        return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
     }
 
     private async Task NewDayTimetableCheck()
