@@ -12,7 +12,7 @@ public class User
     public string? Group { get; set; }
     public bool Notifications { get; set; }
 
-    public User(long userId, string username, string firstName, string lastName)
+    public User(long userId, string? username, string firstName, string? lastName)
     {
         this.UserId = userId;
         this.Username = username;

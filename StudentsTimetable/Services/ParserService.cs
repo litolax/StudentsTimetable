@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
@@ -35,8 +36,7 @@ public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
 
-    private const string WeekUrl =
-        "https://mgkct.minskedu.gov.by/%D0%BF%D0%B5%D1%80%D1%81%D0%BE%D0%BD%D0%B0%D0%BB%D0%B8%D0%B8/%D1%83%D1%87%D0%B0%D1%89%D0%B8%D0%BC%D1%81%D1%8F/%D1%80%D0%B0%D1%81%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5-%D0%B7%D0%B0%D0%BD%D1%8F%D1%82%D0%B8%D0%B9-%D0%BD%D0%B0-%D0%BD%D0%B5%D0%B4%D0%B5%D0%BB%D1%8E";
+    private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
 
     public static bool ParseResult;
     private string LastDayHtmlContent { get; set; }
@@ -44,8 +44,10 @@ public class ParserService : IParserService
 
     public List<string> Groups { get; set; } = new()
     {
-        "7", "8", "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
-        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "156", "157", "160", "161", "162", "163", "164"
+        "7", "8", "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64",
+        "65",
+        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "156", "157", "160", "161", "162",
+        "163", "164"
     };
 
     public List<Day> Timetables { get; set; } = new();
@@ -439,6 +441,7 @@ public class ParserService : IParserService
         }
     }
 
+    [SuppressMessage("ReSharper.DPA", "DPA0001: Memory allocation issues")]
     public async Task ParseWeekTimetables()
     {
         var web = new HtmlWeb();
@@ -459,34 +462,28 @@ public class ParserService : IParserService
         options.AddArgument("--no-sandbox");
 
         var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
-        driver.Manage().Window.Size = new Size(1920, 1250);
+        driver.Manage().Window.Size = new Size(1920, 1400);
 
-        driver.Navigate().GoToUrl(WeekUrl);
-
-        var container = driver.FindElement(By.ClassName("main"));
-        driver.ExecuteScript("arguments[0].style='width: 100%'", container);
-
-        var elements = driver.FindElements(By.TagName("h2"));
-
-        for (int i = 0; i < elements.Count; i++)
+        foreach (var group in Groups)
         {
-            Actions actions = new Actions(driver);
-            if (i + 1 < elements.Count) actions.MoveToElement(elements[i + 1]).Perform();
-            else
-            {
-                actions.MoveToElement(elements[i]).Perform();
-                for (int j = 0; j < 100; j++)
-                {
-                    actions.SendKeys(Keys.Down);
-                }
-            }
+            driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
 
-            actions.Perform();
+            var container = driver.FindElement(By.ClassName("main"));
+            driver.ExecuteScript("arguments[0].style='width: 100%'", container);
+
+            var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
+            if (element == default) continue;
+            
+            Actions actions = new Actions(driver);
+            actions.MoveToElement(element).Perform();
+
+            actions.ScrollByAmount(0, 300).Perform();
 
             var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-            screenshot.SaveAsFile($"./photo/{students[i].ChildNodes[0].InnerHtml.Replace("*", "")}.png",
+            screenshot.SaveAsFile($"./photo/Группа - {group}.png",
                 ScreenshotImageFormat.Png);
         }
+
 
         driver.Close();
         driver.Quit();
