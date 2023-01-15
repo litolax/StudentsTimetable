@@ -462,7 +462,7 @@ public class ParserService : IParserService
         options.AddArgument("--no-sandbox");
 
         var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
-        driver.Manage().Window.Size = new Size(1920, 1400);
+        driver.Manage().Window.Size = new Size(1920, 1250);
 
         foreach (var group in Groups)
         {
@@ -477,7 +477,7 @@ public class ParserService : IParserService
             Actions actions = new Actions(driver);
             actions.MoveToElement(element).Perform();
 
-            actions.ScrollByAmount(0, 300).Perform();
+            actions.ScrollByAmount(0, 325).Perform();
 
             var screenshot = (driver as ITakesScreenshot).GetScreenshot();
             screenshot.SaveAsFile($"./photo/Группа - {group}.png",
