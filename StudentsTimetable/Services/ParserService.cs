@@ -34,6 +34,10 @@ public interface IParserService
 public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
+
+    private const string WeekUrl =
+        "https://mgkct.minskedu.gov.by/%D0%BF%D0%B5%D1%80%D1%81%D0%BE%D0%BD%D0%B0%D0%BB%D0%B8%D0%B8/%D1%83%D1%87%D0%B0%D1%89%D0%B8%D0%BC%D1%81%D1%8F/%D1%80%D0%B0%D1%81%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D0%B5-%D0%B7%D0%B0%D0%BD%D1%8F%D1%82%D0%B8%D0%B9-%D0%BD%D0%B0-%D0%BD%D0%B5%D0%B4%D0%B5%D0%BB%D1%8E";
+
     public static bool ParseResult;
     private string LastDayHtmlContent { get; set; }
     private string LastWeekHtmlContent { get; set; }
@@ -151,7 +155,7 @@ public class ParserService : IParserService
                         var parsedValue = firstSheet.Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1].Cells[j]
                             .DisplayText;
                         if (string.Equals(lastContent, parsedValue)) continue;
-                        
+
                         groupInfo.Date = groupTableWithIndexesWithSame.Values.ToList()[i];
                         groupInfo.Number = int.Parse(parsedValue);
                         //сверху мы спарсили саму группу
@@ -427,13 +431,6 @@ public class ParserService : IParserService
             try
             {
                 await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
-                if (File.Exists("./logs.txt"))
-                    await File.WriteAllTextAsync("./logs.txt",
-                        await File.ReadAllTextAsync("./logs.txt") +
-                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
-                else
-                    await File.WriteAllTextAsync("./logs.txt",
-                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на день\n");
             }
             catch (Exception e)
             {
@@ -444,26 +441,30 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
-        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
         var web = new HtmlWeb();
-        var doc = web.Load(url);
-        
+        var doc = web.Load(WeekUrl);
+
         this.LastWeekHtmlContent = doc.DocumentNode.InnerHtml;
 
         var students = doc.DocumentNode.SelectNodes("//h2");
         if (students is null) return;
 
-        var newDate = doc.DocumentNode.SelectNodes("//h3")[0];
+        var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
         var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
         ChromeOptions options = new ChromeOptions();
+
         options.AddArgument("headless");
         options.AddArgument("--no-sandbox");
-        var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
-        driver.Manage().Window.Size = new Size(1200, 1250);
 
-        driver.Navigate().GoToUrl("http://mgke.minsk.edu.by/ru/main.aspx?guid=3781");
+        var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
+        driver.Manage().Window.Size = new Size(1920, 1250);
+
+        driver.Navigate().GoToUrl(WeekUrl);
+
+        var container = driver.FindElement(By.ClassName("main"));
+        driver.ExecuteScript("arguments[0].style='width: 100%'", container);
 
         var elements = driver.FindElements(By.TagName("h2"));
 
@@ -483,18 +484,18 @@ public class ParserService : IParserService
             actions.Perform();
 
             var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-            screenshot.SaveAsFile($"./photo/{students[i].ChildNodes[0].InnerHtml}.png",
+            screenshot.SaveAsFile($"./photo/{students[i].ChildNodes[0].InnerHtml.Replace("*", "")}.png",
                 ScreenshotImageFormat.Png);
         }
 
         driver.Close();
         driver.Quit();
 
-        if (!dbTables.Exists(table => table.Date.Trim() == newDate.InnerText.Trim()))
+        if (!dbTables.Exists(table => table.Date.Trim() == newDate))
         {
             await dateDbCollection.InsertOneAsync(new Timetable()
             {
-                Date = newDate.InnerText.Trim()
+                Date = newDate
             });
             await this.SendNotificationsAboutWeekTimetable();
         }
@@ -532,13 +533,6 @@ public class ParserService : IParserService
             try
             {
                 await bot.SendPhotoAsync(user.UserId, new InputFile(ms.ToArray(), $"./photo/{user.Group}.png"));
-                if (File.Exists("./logs.txt"))
-                    await File.WriteAllTextAsync("./logs.txt",
-                        await File.ReadAllTextAsync("./logs.txt") +
-                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
-                else
-                    await File.WriteAllTextAsync("./logs.txt",
-                        $"[{DateTime.UtcNow}] {user.Username ?? user.FirstName ?? user.LastName} попросил расписание на неделю\n");
             }
             catch (Exception e)
             {
@@ -594,12 +588,11 @@ public class ParserService : IParserService
 
         await this.ParseDayTimetables();
     }
-    
+
     private async Task NewWeekTimetableCheck()
     {
-        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3781";
         var web = new HtmlWeb();
-        var doc = web.Load(url);
+        var doc = web.Load(WeekUrl);
         if (this.LastWeekHtmlContent == doc.DocumentNode.InnerHtml) return;
 
         await this.ParseWeekTimetables();
