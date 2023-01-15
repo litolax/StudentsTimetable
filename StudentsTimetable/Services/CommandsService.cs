@@ -37,7 +37,7 @@ namespace StudentsTimetable.Services
                 if (result) this._mongoService.RemoveState(update.Message.Chat.Id);
             }
 
-
+            
             switch (update.Message.Text)
             {
                 case "/start":

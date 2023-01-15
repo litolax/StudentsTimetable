@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
@@ -8,7 +7,10 @@ using OfficeOpenXml;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using StudentsTimetable.Config;
 using StudentsTimetable.Models;
 using Syncfusion.XlsIO;
@@ -17,6 +19,7 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using File = System.IO.File;
+using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -440,8 +443,7 @@ public class ParserService : IParserService
             }
         }
     }
-
-    [SuppressMessage("ReSharper.DPA", "DPA0001: Memory allocation issues")]
+    
     public async Task ParseWeekTimetables()
     {
         var web = new HtmlWeb();
@@ -466,6 +468,8 @@ public class ParserService : IParserService
 
         foreach (var group in Groups)
         {
+            var filePath = $"./photo/Группа - {group}.png";
+            
             driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
 
             var container = driver.FindElement(By.ClassName("main"));
@@ -474,14 +478,18 @@ public class ParserService : IParserService
             var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
             if (element == default) continue;
             
-            Actions actions = new Actions(driver);
+            var actions = new Actions(driver);
             actions.MoveToElement(element).Perform();
 
             actions.ScrollByAmount(0, 325).Perform();
 
             var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-            screenshot.SaveAsFile($"./photo/Группа - {group}.png",
-                ScreenshotImageFormat.Png);
+            screenshot.SaveAsFile(filePath, ScreenshotImageFormat.Png);
+            
+            var image = await Image.LoadAsync(filePath);
+        
+            image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
+            await image.SaveAsPngAsync(filePath);
         }
 
 
@@ -521,15 +529,16 @@ public class ParserService : IParserService
             return;
         }
 
+        
+        var image = await Image.LoadAsync($"./photo/Группа - {user.Group}.png");
 
-        var image = await SixLabors.ImageSharp.Image.LoadAsync($"./photo/Группа - {user.Group}.png");
         using (var ms = new MemoryStream())
         {
             await image.SaveAsync(ms, new PngEncoder());
 
             try
             {
-                await bot.SendPhotoAsync(user.UserId, new InputFile(ms.ToArray(), $"./photo/{user.Group}.png"));
+                await bot.SendPhotoAsync(user.UserId, new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png"));
             }
             catch (Exception e)
             {
