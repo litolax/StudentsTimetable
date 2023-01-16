@@ -53,11 +53,11 @@ public class ParserService : IParserService
     {
         this._mongoService = mongoService;
 
-        var parseDayTimer = new Timer(10000)
-        {
-            AutoReset = true, Enabled = true
-        };
-        parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
+        // var parseDayTimer = new Timer(10000)
+        // {
+        //     AutoReset = true, Enabled = true
+        // };
+        // parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
 
         var parseWeekTimer = new Timer(10000)
         {
@@ -354,6 +354,10 @@ public class ParserService : IParserService
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
+        
+        //todo спилить
+        await bot.SendMessageAsync(user.UserId, $"Дневное расписание временно недоступно");
+        return;
 
         if (user.Group is null)
         {
@@ -452,12 +456,13 @@ public class ParserService : IParserService
         var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
-        ChromeOptions options = new ChromeOptions();
-
+        var options = new ChromeOptions();
+        
         options.AddArgument("headless");
         options.AddArgument("--no-sandbox");
-
-        var driver = new ChromeDriver(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), options);
+        options.AddArguments("--disable-dev-shm-usage");
+            
+        var driver = new ChromeDriver(options);
 
         foreach (var group in Groups)
         {
@@ -491,7 +496,7 @@ public class ParserService : IParserService
             {
                 Date = newDate
             });
-            await this.SendNotificationsAboutWeekTimetable();
+            // await this.SendNotificationsAboutWeekTimetable();
         }
     }
 
@@ -561,7 +566,7 @@ public class ParserService : IParserService
 
             try
             {
-                await bot.SendMessageAsync(user.UserId, "Обновлено расписание на неделю");
+                await bot.SendMessageAsync(user.UserId, "Обновлена страница расписания на неделю");
             }
             catch (Exception e)
             {
@@ -570,15 +575,15 @@ public class ParserService : IParserService
         }
     }
 
-    private async Task NewDayTimetableCheck()
-    {
-        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
-        var web = new HtmlWeb();
-        var doc = web.Load(url);
-        if (this.LastDayHtmlContent == doc.DocumentNode.InnerHtml) return;
-
-        await this.ParseDayTimetables();
-    }
+    // private async Task NewDayTimetableCheck()
+    // {
+    //     var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
+    //     var web = new HtmlWeb();
+    //     var doc = web.Load(url);
+    //     if (this.LastDayHtmlContent == doc.DocumentNode.InnerHtml) return;
+    //
+    //     await this.ParseDayTimetables();
+    // }
 
     private async Task NewWeekTimetableCheck()
     {
@@ -587,5 +592,6 @@ public class ParserService : IParserService
         if (this.LastWeekHtmlContent == doc.DocumentNode.InnerHtml) return;
 
         await this.ParseWeekTimetables();
+        await this.SendNotificationsAboutWeekTimetable();
     }
 }
