@@ -61,7 +61,7 @@ public class ParserService : IParserService
         // };
         // parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
 
-        var parseWeekTimer = new Timer(10000)
+        var parseWeekTimer = new Timer(100_000)
         {
             AutoReset = true, Enabled = true
         };
