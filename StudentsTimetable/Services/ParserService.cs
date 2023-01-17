@@ -40,6 +40,8 @@ public class ParserService : IParserService
     private string LastDayHtmlContent { get; set; }
     private string LastWeekHtmlContent { get; set; }
 
+    private bool _weekParseStarted = false;
+
     public List<string> Groups { get; set; } = new()
     {
         "7", "8", "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64",
@@ -63,7 +65,7 @@ public class ParserService : IParserService
         {
             AutoReset = true, Enabled = true
         };
-        parseWeekTimer.Elapsed += async (sender, args) => { await this.NewWeekTimetableCheck(); };
+        parseWeekTimer.Elapsed += (sender, args) => { _ = this.NewWeekTimetableCheck(); };
     }
 
     public async Task ParseDayTimetables()
@@ -444,13 +446,21 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
+        if (_weekParseStarted) return;
+        _weekParseStarted = true;
+        
         var web = new HtmlWeb();
         var doc = web.Load(WeekUrl);
 
-        this.LastWeekHtmlContent = doc.DocumentNode.InnerHtml;
+        var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
+        if (content != default) this.LastWeekHtmlContent = content.InnerText;
 
         var students = doc.DocumentNode.SelectNodes("//h2");
-        if (students is null) return;
+        if (students is null)
+        {
+            _weekParseStarted = false;
+            return;
+        }
 
         var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
         var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
@@ -496,8 +506,10 @@ public class ParserService : IParserService
             {
                 Date = newDate
             });
-            // await this.SendNotificationsAboutWeekTimetable();
         }
+        
+        _weekParseStarted = false;
+        await this.SendNotificationsAboutWeekTimetable();
     }
 
     public async Task SendWeekTimetable(User telegramUser)
@@ -566,7 +578,7 @@ public class ParserService : IParserService
 
             try
             {
-                await bot.SendMessageAsync(user.UserId, "Обновлена страница расписания на неделю");
+                await bot.SendMessageAsync(user.UserId, "Колледж обновил страницу расписания на неделю");
             }
             catch (Exception e)
             {
@@ -589,9 +601,11 @@ public class ParserService : IParserService
     {
         var web = new HtmlWeb();
         var doc = web.Load(WeekUrl);
-        if (this.LastWeekHtmlContent == doc.DocumentNode.InnerHtml) return;
+        var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
+        if (content == default) return;
+        
+        if (this.LastWeekHtmlContent == content.InnerText) return;
 
-        await this.ParseWeekTimetables();
-        await this.SendNotificationsAboutWeekTimetable();
+        _ =  this.ParseWeekTimetables();
     }
 }
