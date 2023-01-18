@@ -509,7 +509,7 @@ public class ParserService : IParserService
         }
         
         _weekParseStarted = false;
-        await this.SendNotificationsAboutWeekTimetable();
+        //await this.SendNotificationsAboutWeekTimetable();
     }
 
     public async Task SendWeekTimetable(User telegramUser)
