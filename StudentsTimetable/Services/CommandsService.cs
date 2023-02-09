@@ -1,15 +1,13 @@
-﻿using MongoDB.Driver;
-using StudentsTimetable.Config;
-using StudentsTimetable.Models;
-using Telegram.BotAPI;
-using Telegram.BotAPI.AvailableMethods;
-using Telegram.BotAPI.GettingUpdates;
+﻿using Telegram.BotAPI.AvailableMethods;
+using Telegram.BotAPI.AvailableTypes;
+using TelegramBot_Timetable_Core;
+using TelegramBot_Timetable_Core.Models;
+using TelegramBot_Timetable_Core.Services;
 
 namespace StudentsTimetable.Services
 {
     public interface ICommandsService
     {
-        void CommandsValidator(Update update);
     }
 
     public class CommandsService : ICommandsService
@@ -18,160 +16,97 @@ namespace StudentsTimetable.Services
         private readonly IAccountService _accountService;
         private readonly IParserService _parserService;
         private readonly IMongoService _mongoService;
+        private readonly IBotService _botService;
 
         public CommandsService(IInterfaceService interfaceService, IAccountService accountService,
-            IParserService parserService, IMongoService mongoService)
+            IParserService parserService, IMongoService mongoService, IBotService botService)
         {
+            Core.OnMessageReceive += OnMessageReceive;
+            
             this._interfaceService = interfaceService;
             this._accountService = accountService;
             this._parserService = parserService;
             this._mongoService = mongoService;
+            this._botService = botService;
         }
 
-        public async void CommandsValidator(Update update)
+        private async void OnMessageReceive(Message message)
         {
-            var lastState = await this._mongoService.GetLastState(update.Message.Chat.Id);
+            if (message.From is not { } sender) return;
+            var messageText = message.Text;
+            
+            var lastState = await this._mongoService.GetLastState(message.Chat.Id);
             if (lastState is not null && lastState == "changeGroup")
             {
-                var result = await this._accountService.ChangeGroup(update.Message.From!, update.Message.Text);
-                if (result) this._mongoService.RemoveState(update.Message.Chat.Id);
+                var result = await this._accountService.ChangeGroup(sender, messageText);
+                if (result) this._mongoService.RemoveState(message.Chat.Id);
             }
 
             
-            switch (update.Message.Text)
+            switch (messageText)
             {
                 case "/start":
-                {
-                    await this._interfaceService.OpenMainMenu(update);
-                    var config = new Config<MainConfig>();
-                    var bot = new BotClient(config.Entries.Token);
-                    try
-                    {
-                        await bot.SendMessageAsync(update.Message.From!.Id, $"Используя бота вы подтверждаете, " +
-                                                                            $"что автор не несет за вас и ваши действия никакой ответственности");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-
-                    break;
-                }
                 case "/menu":
                 {
-                    await this._interfaceService.OpenMainMenu(update);
+                    await this._interfaceService.OpenMainMenu(message);
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id,
+                        "Используя бота вы подтверждаете, что автор не несет за вас и ваши действия никакой ответственности"));
                     break;
                 }
                 case "/help":
                 {
-                    if (update.Message.From is null) return;
-                    await this._interfaceService.HelpCommand(update.Message.From);
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id,
+                        $"Вы пользуетесь ботом, который поможет узнать Вам актуальное расписание учеников МГКЦТ.\nСоздатель @litolax"));
                     break;
                 }
                 case "/tos":
                 {
-                    var config = new Config<MainConfig>();
-                    var bot = new BotClient(config.Entries.Token);
-                    try
-                    {
-                        await bot.SendMessageAsync(update.Message.From!.Id, $"Используя бота вы подтверждаете, " +
-                                                                            $"что автор не несет за вас и ваши действия никакой ответственности");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id,
+                        $"Используя бота вы подтверждаете, что автор не несет за вас и ваши действия никакой ответственности"));
                     break;
                 }
                 case "🎰Посмотреть расписание на день🎰":
                 {
-                    if (update.Message.From is null) return;
-                    await this._parserService.SendDayTimetable(update.Message.From);
+                    await this._parserService.SendDayTimetable(sender);
                     break;
                 }
                 case "🔪Посмотреть расписание на неделю🔪":
                 {
-                    if (update.Message.From is null) return;
-                    await this._parserService.SendWeekTimetable(update.Message.From);
+                    await this._parserService.SendWeekTimetable(sender);
                     break;
                 }
                 case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":
                 {
-                    var config = new Config<MainConfig>();
-                    var bot = new BotClient(config.Entries.Token);
-                    try
-                    {
-                        await bot.SendMessageAsync(update.Message.From!.Id, $"Для выбора группы отправьте её номер.");
-                        this._mongoService.CreateState(new UserState(update.Message.Chat.Id, "changeGroup"));
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id, "Для выбора группы отправьте её номер."));
+                    this._mongoService.CreateState(new UserState(message.Chat.Id, "changeGroup"));
                     break;
                 }
                 case "💳Подписаться на рассылку💳":
-                {
-                    if (update.Message.From is null) return;
-                    await this._accountService.SubscribeNotifications(update.Message.From);
-                    break;
-                }
                 case "🙏Отписаться от рассылки🙏":
                 {
-                    if (update.Message.From is null) return;
-                    await this._accountService.UnSubscribeNotifications(update.Message.From);
+                    await this._accountService.UpdateNotificationsStatus(sender);
                     break;
                 }
             }
 
-            if (update.Message.Text!.ToLower().Contains("/sayall") && update.Message.From!.Id == 698346968)
-                await this._interfaceService.NotifyAllUsers(update);
-
-            if (update.Message.Text!.ToLower().Contains("/stopparse") && update.Message.From!.Id == 698346968)
+            try
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
-                    .First();
-                info.ParseAllowed = false;
-                var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, false);
-                await this._mongoService.Database.GetCollection<Info>("Info")
-                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
-            }
+                if (sender.Id != 698346968) return;
 
-            if (update.Message.Text!.ToLower().Contains("/startparse") && update.Message.From!.Id == 698346968)
+                if (messageText is not null)
+                {
+                    var lowerMessageText = messageText.ToLower();
+                    
+                    if (lowerMessageText.Contains("/notify"))
+                        await this._parserService.SendNewDayTimetables();
+                }
+                
+                await this._interfaceService.NotifyAllUsers(message);
+            }
+            catch (Exception e)
             {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
-                    .First();
-                info.ParseAllowed = true;
-                var infoUpdate = Builders<Info>.Update.Set(i => i.ParseAllowed, true);
-                await this._mongoService.Database.GetCollection<Info>("Info")
-                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
-                await this._parserService.ParseDayTimetables();
+                Console.WriteLine(e);
             }
-
-            if (update.Message.Text!.ToLower().Contains("/unload") && update.Message.From!.Id == 698346968)
-            {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
-                    .First();
-                info.LoadFixFile = false;
-                var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, false);
-                await this._mongoService.Database.GetCollection<Info>("Info")
-                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
-            }
-
-            if (update.Message.Text!.ToLower().Contains("/load") && update.Message.From!.Id == 698346968)
-            {
-                var info = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
-                    .First();
-                info.LoadFixFile = true;
-                var infoUpdate = Builders<Info>.Update.Set(i => i.LoadFixFile, true);
-                await this._mongoService.Database.GetCollection<Info>("Info")
-                    .UpdateOneAsync(i => i.Id == info.Id, infoUpdate);
-            }
-
-            if (update.Message.Text!.ToLower().Contains("/notify") && update.Message.From!.Id == 698346968)
-                await this._parserService.SendNewDayTimetables();
         }
     }
 }
