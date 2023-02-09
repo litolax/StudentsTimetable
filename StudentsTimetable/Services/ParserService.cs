@@ -8,11 +8,9 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using StudentsTimetable.Models;
 using Syncfusion.XlsIO;
-using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
-using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Services;
 using File = System.IO.File;
 using Timer = System.Timers.Timer;
@@ -33,10 +31,10 @@ public interface IParserService
 public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
+    private readonly IBotService _botService;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
 
-    public static bool ParseResult;
     private string LastDayHtmlContent { get; set; }
     private string LastWeekHtmlContent { get; set; }
 
@@ -44,16 +42,18 @@ public class ParserService : IParserService
 
     public List<string> Groups { get; set; } = new()
     {
-        "7", "8", "41", "42", "44", "45", "46", "47", "49", "50", "52", "53", "54", "55", "56", "60", "61", "63", "64",
-        "65",
-        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78"
+        "7", "8", "41", "42", "44", "45", "46", "47", "49", "50",
+        "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
+        "66", "67", "68", "69", "70", "71", "72", "73", "74", "75",
+        "76", "77", "78"
     };
 
     public List<Day> Timetables { get; set; } = new();
 
-    public ParserService(IMongoService mongoService)
+    public ParserService(IMongoService mongoService, IBotService botService)
     {
         this._mongoService = mongoService;
+        this._botService = botService;
 
         // var parseDayTimer = new Timer(10000)
         // {
@@ -65,19 +65,28 @@ public class ParserService : IParserService
         {
             AutoReset = true, Enabled = true
         };
-        parseWeekTimer.Elapsed += (sender, args) => { _ = this.NewWeekTimetableCheck(); };
+        parseWeekTimer.Elapsed += (sender, args) =>
+        {
+            _ = this.NewWeekTimetableCheck()
+                .ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
+                    TaskContinuationOptions.OnlyOnFaulted);
+        };
     }
 
     public async Task ParseDayTimetables()
     {
-        ParseResult = false;
-        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info").FindAsync(i => true)).ToList()
+        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info")
+                .FindAsync(i => true))
+            .ToList()
             .First();
+
         if (!parseInfo.ParseAllowed) return;
+
         List<Day> Days = new List<Day>();
         List<GroupInfo> groupInfos = new List<GroupInfo>();
         var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
         var web = new HtmlWeb();
+
         var doc = web.Load(url);
         this.LastDayHtmlContent = doc.DocumentNode.InnerHtml;
 
@@ -263,15 +272,10 @@ public class ParserService : IParserService
         {
             await this.SendNewDayTimetables();
         }
-
-        ParseResult = true;
     }
 
     public async Task SendNewDayTimetables()
     {
-        var config = new Config<MainConfig>();
-        var bot = new BotClient(config.Entries.Token);
-
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
 
@@ -280,21 +284,15 @@ public class ParserService : IParserService
             if (!user.Notifications || user.Group is null) continue;
             if (this.Timetables.Count < 1)
             {
-                try
-                {
-                    await bot.SendMessageAsync(user.UserId, $"У {user.Group} группы нет пар");
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-
+                this._botService.SendMessage(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
                 return;
             }
 
+            var tasks = new List<Task>();
             foreach (var day in this.Timetables)
             {
                 var message = day.Date + "\n";
+
                 foreach (var groupInfo in day.GroupInfos)
                 {
                     if (int.Parse(user.Group) != groupInfo.Number) continue;
@@ -336,119 +334,113 @@ public class ParserService : IParserService
                     }
                 }
 
-                try
+                tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
                 {
-                    await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                }
+                    ParseMode = ParseMode.Markdown
+                }));
             }
+
+            await Task.WhenAll(tasks);
         }
     }
 
     public async Task SendDayTimetable(User telegramUser)
     {
-        var config = new Config<MainConfig>();
-        var bot = new BotClient(config.Entries.Token);
-
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
-        
+
         //todo спилить
-        await bot.SendMessageAsync(user.UserId, $"Дневное расписание временно недоступно");
-        return;
+        this._botService.SendMessage(new SendMessageArgs(user.UserId, "Дневное расписание временно недоступно"));
 
-        if (user.Group is null)
-        {
-            try
-            {
-                await bot.SendMessageAsync(user.UserId, "Вы еще не выбрали группу");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-
-            return;
-        }
-
-        if (this.Timetables.Count < 1)
-        {
-            try
-            {
-                await bot.SendMessageAsync(user.UserId, $"У {user.Group} группы нет пар");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-
-            return;
-        }
-
-        foreach (var day in this.Timetables)
-        {
-            var message = day.Date + "\n";
-            foreach (var groupInfo in day.GroupInfos)
-            {
-                if (int.Parse(user.Group) != groupInfo.Number) continue;
-
-                if (groupInfo.Lessons.Count < 1)
-                {
-                    message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
-                    continue;
-                }
-
-                message += $"Группа: *{user.Group}*\n\n";
-
-                foreach (var lesson in groupInfo.Lessons)
-                {
-                    var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-                    var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                    var newlineIndexes = new List<int>();
-                    for (int g = 0; g < lessonName.Length; g++)
-                    {
-                        if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
-                        {
-                            newlineIndexes.Add(g);
-                        }
-                    }
-
-                    if (newlineIndexes.Count > 0)
-                    {
-                        foreach (var newlineIndex in newlineIndexes)
-                        {
-                            lessonName = lessonName.Insert(newlineIndex, "\n");
-                        }
-                    }
-
-                    message +=
-                        $"*Пара: №{lesson.Number + 1}*" +
-                        $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-                        $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
-                        $"\n\n";
-                }
-            }
-
-            try
-            {
-                await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-        }
+        // if (user.Group is null)
+        // {
+        //     try
+        //     {
+        //         await bot.SendMessageAsync(user.UserId, "Вы еще не выбрали группу");
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine(e);
+        //     }
+        //
+        //     return;
+        // }
+        //
+        // if (this.Timetables.Count < 1)
+        // {
+        //     try
+        //     {
+        //         await bot.SendMessageAsync(user.UserId, $"У {user.Group} группы нет пар");
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine(e);
+        //     }
+        //
+        //     return;
+        // }
+        //
+        // foreach (var day in this.Timetables)
+        // {
+        //     var message = day.Date + "\n";
+        //     foreach (var groupInfo in day.GroupInfos)
+        //     {
+        //         if (int.Parse(user.Group) != groupInfo.Number) continue;
+        //
+        //         if (groupInfo.Lessons.Count < 1)
+        //         {
+        //             message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
+        //             continue;
+        //         }
+        //
+        //         message += $"Группа: *{user.Group}*\n\n";
+        //
+        //         foreach (var lesson in groupInfo.Lessons)
+        //         {
+        //             var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+        //             var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+        //             var newlineIndexes = new List<int>();
+        //             for (int g = 0; g < lessonName.Length; g++)
+        //             {
+        //                 if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
+        //                 {
+        //                     newlineIndexes.Add(g);
+        //                 }
+        //             }
+        //
+        //             if (newlineIndexes.Count > 0)
+        //             {
+        //                 foreach (var newlineIndex in newlineIndexes)
+        //                 {
+        //                     lessonName = lessonName.Insert(newlineIndex, "\n");
+        //                 }
+        //             }
+        //
+        //             message +=
+        //                 $"*Пара: №{lesson.Number + 1}*" +
+        //                 $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
+        //                 $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
+        //                 $"\n\n";
+        //         }
+        //     }
+        //
+        //     try
+        //     {
+        //         await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine(e);
+        //     }
+        //}
     }
 
     public async Task ParseWeekTimetables()
     {
         if (_weekParseStarted) return;
-        _weekParseStarted = true;
-        
+        this._weekParseStarted = true;
+
         var web = new HtmlWeb();
         var doc = web.Load(WeekUrl);
 
@@ -458,7 +450,7 @@ public class ParserService : IParserService
         var students = doc.DocumentNode.SelectNodes("//h2");
         if (students is null)
         {
-            _weekParseStarted = false;
+            this._weekParseStarted = false;
             return;
         }
 
@@ -467,11 +459,11 @@ public class ParserService : IParserService
         var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
         var options = new ChromeOptions();
-        
+
         options.AddArgument("headless");
         options.AddArgument("--no-sandbox");
         options.AddArguments("--disable-dev-shm-usage");
-            
+
         var driver = new ChromeDriver(options);
 
         foreach (var group in Groups)
@@ -496,7 +488,7 @@ public class ParserService : IParserService
             image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
             await image.SaveAsPngAsync(filePath);
         }
-        
+
         driver.Close();
         driver.Quit();
 
@@ -507,34 +499,22 @@ public class ParserService : IParserService
                 Date = newDate
             });
         }
-        
-        _weekParseStarted = false;
+
+        this._weekParseStarted = false;
         //await this.SendNotificationsAboutWeekTimetable();
     }
 
     public async Task SendWeekTimetable(User telegramUser)
     {
-        var config = new Config<MainConfig>();
-        var bot = new BotClient(config.Entries.Token);
-
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
         if (user.Group is null)
         {
-            try
-            {
-                await bot.SendMessageAsync(user.UserId, "Вы еще не выбрали группу");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-
+            this._botService.SendMessage(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
             return;
         }
-
 
         Image? image;
         try
@@ -543,7 +523,7 @@ public class ParserService : IParserService
         }
         catch
         {
-            await bot.SendMessageAsync(user.UserId, "Увы, данная группа не найдена");
+            this._botService.SendMessage(new SendMessageArgs(user.UserId, "Увы, данная группа не найдена"));
             return;
         }
 
@@ -551,40 +531,28 @@ public class ParserService : IParserService
         {
             await image.SaveAsync(ms, new PngEncoder());
 
-            try
-            {
-                await bot.SendPhotoAsync(user.UserId,
-                    new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png"));
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
+            this._botService.SendPhoto(new SendPhotoArgs(user.UserId,
+                new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png")));
         }
     }
 
     public async Task SendNotificationsAboutWeekTimetable()
     {
-        var config = new Config<MainConfig>();
-        var bot = new BotClient(config.Entries.Token);
-
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
         if (users is null) return;
 
+        var tasks = new List<Task>();
+        
         foreach (var user in users)
         {
             if (user.Group is null || !user.Notifications) continue;
 
-            try
-            {
-                await bot.SendMessageAsync(user.UserId, "Колледж обновил страницу расписания на неделю");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
+            tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
+                "Колледж обновил страницу расписания на неделю")));
         }
+
+        await Task.WhenAll(tasks);
     }
 
     // private async Task NewDayTimetableCheck()
@@ -603,9 +571,12 @@ public class ParserService : IParserService
         var doc = web.Load(WeekUrl);
         var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
         if (content == default) return;
-        
+
         if (this.LastWeekHtmlContent == content.InnerText) return;
 
-        _ =  this.ParseWeekTimetables();
+        _ = this.ParseWeekTimetables().ContinueWith((t) =>
+        {
+            Console.WriteLine(t.Exception?.InnerException);
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 }
