@@ -114,15 +114,10 @@ namespace StudentsTimetable.Services
                     break;
                 }
                 case "💳Подписаться на рассылку💳":
-                {
-                    if (update.Message.From is null) return;
-                    await this._accountService.SubscribeNotifications(update.Message.From);
-                    break;
-                }
                 case "🙏Отписаться от рассылки🙏":
                 {
                     if (update.Message.From is null) return;
-                    await this._accountService.UnSubscribeNotifications(update.Message.From);
+                    await this._accountService.UpdateNotificationsStatus(update.Message.From);
                     break;
                 }
             }
