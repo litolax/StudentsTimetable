@@ -1,15 +1,16 @@
 ﻿using MongoDB.Driver;
-using StudentsTimetable.Config;
 using StudentsTimetable.Models;
 using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.GettingUpdates;
+using TelegramBot_Timetable_Core.Config;
+using TelegramBot_Timetable_Core.Models;
+using TelegramBot_Timetable_Core.Services;
 
 namespace StudentsTimetable.Services
 {
     public interface ICommandsService
     {
-        void CommandsValidator(Update update);
     }
 
     public class CommandsService : ICommandsService

@@ -1,9 +1,10 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
-using StudentsTimetable.Config;
 using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableTypes;
+using TelegramBot_Timetable_Core.Config;
+using TelegramBot_Timetable_Core.Services;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
 namespace StudentsTimetable.Services
