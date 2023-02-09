@@ -1,0 +1,3 @@
+[submodule "TelegramBot-Timetable-Core"]
+	path = TelegramBot-Timetable-Core
+	url = https://github.com/litolax/TelegramBot-Timetable-Core
