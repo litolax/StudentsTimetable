@@ -11,6 +11,7 @@ using Syncfusion.XlsIO;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
+using TelegramBot_Timetable_Core.Models;
 using TelegramBot_Timetable_Core.Services;
 using File = System.IO.File;
 using Timer = System.Timers.Timer;
@@ -276,7 +277,7 @@ public class ParserService : IParserService
 
     public async Task SendNewDayTimetables()
     {
-        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
 
         foreach (var user in users)
@@ -346,7 +347,7 @@ public class ParserService : IParserService
 
     public async Task SendDayTimetable(User telegramUser)
     {
-        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
@@ -506,7 +507,7 @@ public class ParserService : IParserService
 
     public async Task SendWeekTimetable(User telegramUser)
     {
-        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
@@ -538,7 +539,7 @@ public class ParserService : IParserService
 
     public async Task SendNotificationsAboutWeekTimetable()
     {
-        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
         if (users is null) return;
 

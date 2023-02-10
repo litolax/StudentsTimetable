@@ -94,7 +94,7 @@ namespace StudentsTimetable.Services
                         await this._parserService.SendNewDayTimetables();
                 }
                 
-                await this._interfaceService.NotifyAllUsers(message);
+                await this._botService.NotifyAllUsers(message);
             }
             catch (Exception e)
             {
