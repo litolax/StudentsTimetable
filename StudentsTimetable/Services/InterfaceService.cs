@@ -94,7 +94,7 @@ namespace StudentsTimetable.Services
             var (result, messageText) = ValidationAllRegexNotification(message);
             if (!result && message.Poll is null) return;
 
-            var userCollection = this._mongoService.Database.GetCollection<TeachersUser>("Users");
+            var userCollection = this._mongoService.Database.GetCollection<User>("Users");
             var users = (await userCollection.FindAsync(u => true)).ToList();
             if (users is null || users.Count <= 0) return;
 
