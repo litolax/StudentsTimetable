@@ -43,7 +43,7 @@ public class ParserService : IParserService
 
     public List<string> Groups { get; set; } = new()
     {
-        "7", "8", "41", "42", "44", "45", "46", "47", "49", "50",
+        "7", "8", "41", "42", "44", "45", "46", "49", "50",
         "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
         "66", "67", "68", "69", "70", "71", "72", "73", "74", "75",
         "76", "77", "78"
@@ -62,7 +62,7 @@ public class ParserService : IParserService
         // };
         // parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
 
-        var parseWeekTimer = new Timer(100_000)
+        var parseWeekTimer = new Timer(150_000)
         {
             AutoReset = true, Enabled = true
         };
