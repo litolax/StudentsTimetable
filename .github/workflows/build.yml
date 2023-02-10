@@ -20,7 +20,7 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
       - name: Install dependencies
-        run: dotnet restore
+        run: git pull --recurse-submodules && dotnet restore
       - name: Build
         run: dotnet publish StudentsTimetable -c release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true --output StudentsTimetable/Artifacts
       - name: Test
