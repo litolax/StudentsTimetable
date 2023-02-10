@@ -277,7 +277,7 @@ public class ParserService : IParserService
 
     public async Task SendNewDayTimetables()
     {
-        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
 
         foreach (var user in users)
@@ -347,7 +347,7 @@ public class ParserService : IParserService
 
     public async Task SendDayTimetable(User telegramUser)
     {
-        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
@@ -507,7 +507,7 @@ public class ParserService : IParserService
 
     public async Task SendWeekTimetable(User telegramUser)
     {
-        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
@@ -539,7 +539,7 @@ public class ParserService : IParserService
 
     public async Task SendNotificationsAboutWeekTimetable()
     {
-        var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+        var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var users = (await userCollection.FindAsync(u => true)).ToList();
         if (users is null) return;
 

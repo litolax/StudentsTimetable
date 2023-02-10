@@ -10,7 +10,7 @@ namespace StudentsTimetable.Services
 {
     public interface IAccountService
     {
-        Task<StudentsUser?> CreateAccount(User telegramUser);
+        Task<Models.User?> CreateAccount(User telegramUser);
         Task<bool> ChangeGroup(User telegramUser, string? teacher);
         Task UpdateNotificationsStatus(User telegramUser);
     }
@@ -28,14 +28,14 @@ namespace StudentsTimetable.Services
             this._botService = botService;
         }
 
-        public async Task<StudentsUser?> CreateAccount(User telegramUser)
+        public async Task<Models.User?> CreateAccount(User telegramUser)
         {
-            var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+            var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
 
             var users = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList();
             if (users.Count >= 1) return null;
             
-            var user = new StudentsUser(telegramUser.Id, telegramUser.Username, telegramUser.FirstName,
+            var user = new Models.User(telegramUser.Id, telegramUser.Username, telegramUser.FirstName,
                 telegramUser.LastName) {Id = ObjectId.GenerateNewId()};
          
             
@@ -61,12 +61,12 @@ namespace StudentsTimetable.Services
                 return false;
             }
 
-            var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+            var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
             var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First() ??
                        await CreateAccount(telegramUser);
 
             user!.Group = correctGroupName;
-            var update = Builders<StudentsUser>.Update.Set(u => u.Group, user.Group);
+            var update = Builders<Models.User>.Update.Set(u => u.Group, user.Group);
             await userCollection.UpdateOneAsync(u => u.UserId == telegramUser.Id, update);
             
             this._botService.SendMessage(new SendMessageArgs(telegramUser.Id, $"Вы успешно выбрали {correctGroupName} группу"));
@@ -75,7 +75,7 @@ namespace StudentsTimetable.Services
 
         public async Task UpdateNotificationsStatus(User telegramUser)
         {
-            var userCollection = this._mongoService.Database.GetCollection<StudentsUser>("Users");
+            var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
             var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First() ??
                        await CreateAccount(telegramUser);
             
@@ -88,7 +88,7 @@ namespace StudentsTimetable.Services
             }
 
             user.Notifications = !user.Notifications;
-            var update = Builders<StudentsUser>.Update.Set(u => u.Notifications, user.Notifications);
+            var update = Builders<Models.User>.Update.Set(u => u.Notifications, user.Notifications);
             await userCollection.UpdateOneAsync(u => u.UserId == telegramUser.Id, update);
             
             var keyboard = new ReplyKeyboardMarkup
