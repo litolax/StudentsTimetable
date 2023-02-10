@@ -91,7 +91,7 @@ namespace StudentsTimetable.Services
 
             try
             {
-                if (sender.Id != 698346968) return;
+                if (!Core.Administrators.Contains(sender.Id)) return;
 
                 if (messageText is not null)
                 {
