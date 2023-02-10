@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using StudentsTimetable.Services;
+using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core;
 using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Services;
@@ -38,7 +39,10 @@ namespace StudentsTimetable
                 Console.WriteLine(e);
             }
 
-            await Core.Start();
+            await Core.Start(new[]
+            {
+                new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь")
+            });
         }
     }
 }
