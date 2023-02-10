@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: dotnet restore
       - name: Build
-        run: dotnet publish -c release -r ubuntu.21.04-x64 --output StudentsTimetable/Artifacts
+        run: dotnet publish StudentsTimetable -c release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true --output StudentsTimetable/Artifacts
       - name: Test
         run: dotnet test --no-restore --verbosity normal
       - name: Upload dotnet test results
