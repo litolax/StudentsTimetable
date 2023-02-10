@@ -46,7 +46,6 @@ namespace StudentsTimetable.Services
             switch (messageText)
             {
                 case "/start":
-                case "/menu":
                 {
                     await this._interfaceService.OpenMainMenu(message);
                     this._botService.SendMessage(new SendMessageArgs(sender.Id,
@@ -57,12 +56,6 @@ namespace StudentsTimetable.Services
                 {
                     this._botService.SendMessage(new SendMessageArgs(sender.Id,
                         $"Вы пользуетесь ботом, который поможет узнать Вам актуальное расписание учеников МГКЦТ.\nСоздатель @litolax"));
-                    break;
-                }
-                case "/tos":
-                {
-                    this._botService.SendMessage(new SendMessageArgs(sender.Id,
-                        $"Используя бота вы подтверждаете, что автор не несет за вас и ваши действия никакой ответственности"));
                     break;
                 }
                 case "🎰Посмотреть расписание на день🎰":
