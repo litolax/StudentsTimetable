@@ -15,12 +15,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
         uses: actions/setup-dotnet@v2
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
       - name: Install dependencies
-        run: git pull --recurse-submodules && dotnet restore
+        run: dotnet restore
       - name: Build
         run: dotnet publish StudentsTimetable -c release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true --output StudentsTimetable/Artifacts
       - name: Test
