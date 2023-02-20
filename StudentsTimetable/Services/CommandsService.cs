@@ -47,6 +47,8 @@ namespace StudentsTimetable.Services
             {
                 case "/start":
                 {
+                    if (await _accountService.GetUserById(sender.Id) is null) await this._accountService.CreateAccount(sender);
+                    
                     await this._interfaceService.OpenMainMenu(message);
                     this._botService.SendMessage(new SendMessageArgs(sender.Id,
                         "Используя бота вы подтверждаете, что автор не несет за вас и ваши действия никакой ответственности"));

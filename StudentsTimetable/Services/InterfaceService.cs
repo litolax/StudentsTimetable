@@ -33,12 +33,7 @@ namespace StudentsTimetable.Services
         public async Task OpenMainMenu(Message message)
         {
             if (message.From is not { } sender) return;
-
-            var userCollection = this._mongoService.Database.GetCollection<User>("Users");
-            var user = (await userCollection.FindAsync(u => u.UserId == sender.Id)).FirstOrDefault() ??
-                       await this._accountService.CreateAccount(sender);
-
-            if (user is null) return;
+            if (await this._accountService.GetUserById(sender.Id) is not { } user) return;
 
             var keyboard = new ReplyKeyboardMarkup
             {
