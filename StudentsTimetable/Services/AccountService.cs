@@ -13,6 +13,7 @@ namespace StudentsTimetable.Services
         Task<Models.User?> CreateAccount(User telegramUser);
         Task<bool> ChangeGroup(User telegramUser, string? teacher);
         Task UpdateNotificationsStatus(User telegramUser);
+        Task<Models.User?> GetUserById(long id);
     }
 
     public class AccountService : IAccountService
@@ -43,6 +44,12 @@ namespace StudentsTimetable.Services
             return user;
         }
 
+        public async Task<Models.User?> GetUserById(long id)
+        {
+            var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
+            return (await userCollection.FindAsync(u => u.UserId == id)).FirstOrDefault();
+        }
+        
         public async Task<bool> ChangeGroup(User telegramUser, string? groupName)
         {
             if (groupName is null) return false;
@@ -62,8 +69,7 @@ namespace StudentsTimetable.Services
             }
 
             var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
-            var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First() ??
-                       await CreateAccount(telegramUser);
+            var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
 
             user!.Group = correctGroupName;
             var update = Builders<Models.User>.Update.Set(u => u.Group, user.Group);
@@ -76,8 +82,7 @@ namespace StudentsTimetable.Services
         public async Task UpdateNotificationsStatus(User telegramUser)
         {
             var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
-            var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First() ??
-                       await CreateAccount(telegramUser);
+            var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
             
             if (user is null) return;
             
