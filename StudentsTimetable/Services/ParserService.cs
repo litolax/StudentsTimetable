@@ -11,6 +11,7 @@ using Syncfusion.XlsIO;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
+using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Models;
 using TelegramBot_Timetable_Core.Services;
 using File = System.IO.File;
@@ -469,25 +470,36 @@ public class ParserService : IParserService
 
         foreach (var group in this.Groups)
         {
-            var filePath = $"./photo/Группа - {group}.png";
+            try
+            {
+                var filePath = $"./photo/Группа - {group}.png";
 
-            driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
+                driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
 
-            Utils.ModifyUnnecessaryElementsOnWebsite(ref driver);
+                Utils.ModifyUnnecessaryElementsOnWebsite(ref driver);
 
-            var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
-            if (element == default) continue;
+                var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
+                if (element == default) continue;
 
-            var actions = new Actions(driver);
-            actions.MoveToElement(element).Perform();
+                var actions = new Actions(driver);
+                actions.MoveToElement(element).Perform();
 
-            var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-            screenshot.SaveAsFile(filePath, ScreenshotImageFormat.Png);
+                var screenshot = (driver as ITakesScreenshot).GetScreenshot();
+                screenshot.SaveAsFile(filePath, ScreenshotImageFormat.Png);
 
-            var image = await Image.LoadAsync(filePath);
+                var image = await Image.LoadAsync(filePath);
 
-            image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
-            await image.SaveAsPngAsync(filePath);
+                image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
+                await image.SaveAsPngAsync(filePath);
+            }
+            catch (Exception e)
+            {
+                var adminTelegramId = new Config<MainConfig>().Entries.Administrators.FirstOrDefault();
+                if (adminTelegramId == default) continue;
+
+                this._botService.SendMessage(new SendMessageArgs(adminTelegramId, e.Message));
+                this._botService.SendMessage(new SendMessageArgs(adminTelegramId, "Ошибка в группе: " + group));
+            }
         }
 
         driver.Close();
