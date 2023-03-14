@@ -43,8 +43,8 @@ public class ParserService : IParserService
 
     public List<string> Groups { get; set; } = new()
     {
-        "7", "8", "41", "42", "44", "45", "46", "49", "50",
-        "52", "53", "54", "55", "56", "60", "61", "63", "64", "65",
+        "7", "8", "41", "42", "43", "44", "45", "46", "48", "49", "50", "51",
+        "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63", "64", "65",
         "66", "67", "68", "69", "70", "71", "72", "73", "74", "75",
         "76", "77", "78"
     };
@@ -439,7 +439,7 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
-        if (_weekParseStarted) return;
+        if (this._weekParseStarted) return;
         this._weekParseStarted = true;
 
         var web = new HtmlWeb();
@@ -467,7 +467,7 @@ public class ParserService : IParserService
 
         var driver = new ChromeDriver(options);
 
-        foreach (var group in Groups)
+        foreach (var group in this.Groups)
         {
             var filePath = $"./photo/Группа - {group}.png";
 
