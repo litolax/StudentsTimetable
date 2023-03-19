@@ -62,9 +62,14 @@ public class ParserService : IParserService
         {
             AutoReset = true, Enabled = true
         };
-        parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
+        parseDayTimer.Elapsed += (sender, args) =>
+        {
+            _ = this.NewDayTimetableCheck()
+                .ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
+                    TaskContinuationOptions.OnlyOnFaulted);
+        };
 
-        var parseWeekTimer = new Timer(150_000)
+        var parseWeekTimer = new Timer(200_000)
         {
             AutoReset = true, Enabled = true
         };
@@ -107,16 +112,21 @@ public class ParserService : IParserService
         {
             try
             {
-                GroupInfo groupInfo = new GroupInfo();
-
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
                 {
                     if (groupsAndLessons[i - 1].Text.Split('-')[0].Trim() != group) continue;
-
+                    GroupInfo groupInfo = new GroupInfo();
                     List<Lesson> lessons = new List<Lesson>();
+                    
                     var lessonsElements = groupsAndLessons[i].FindElements(By.XPath(".//table/tbody/tr")).ToList();
 
-                    if (lessonsElements.Count < 1) continue;
+                    if (lessonsElements.Count < 1)
+                    {
+                        groupInfo.Lessons = lessons;
+                        groupInfo.Number = int.Parse(group);
+                        groupInfos.Add(groupInfo);
+                        continue;
+                    }
 
                     var lessonNumbers = lessonsElements[0].FindElements(By.XPath(".//th")).ToList();
                     var lessonNames = lessonsElements[1].FindElements(By.XPath(".//td")).ToList();
@@ -126,7 +136,7 @@ public class ParserService : IParserService
                     {
                         string cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
                             ? "-"
-                            : lessonCabinets[j].Text.Replace("\r\n", "");
+                            : lessonCabinets[j].Text;
 
                         lessons.Add(new Lesson()
                         {
@@ -170,7 +180,7 @@ public class ParserService : IParserService
 
             if (groupInfo.Lessons.Count < 1) continue;
 
-            for (int i = 0; i < groupInfo.Lessons.First().Number; i++)
+            for (int i = 0; i < groupInfo.Lessons.First().Number - 1; i++)
             {
                 groupInfo.Lessons.Add(new Lesson()
                 {
@@ -217,7 +227,7 @@ public class ParserService : IParserService
 
                     if (groupInfo.Lessons.Count < 1)
                     {
-                        message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
+                        message = $"У {groupInfo.Number} группы нет пар";
                         continue;
                     }
 
@@ -227,22 +237,22 @@ public class ParserService : IParserService
                     {
                         var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
                         var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                        // var newlineIndexes = new List<int>();
-                        // for (int i = 0; i < lessonName.Length; i++)
-                        // {
-                        //     if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
-                        //     {
-                        //         newlineIndexes.Add(i);
-                        //     }
-                        // }
-                        //
-                        // if (newlineIndexes.Count > 0)
-                        // {
-                        //     foreach (var newlineIndex in newlineIndexes)
-                        //     {
-                        //         lessonName = lessonName.Insert(newlineIndex, "\n");
-                        //     }
-                        // }
+                        var newlineIndexes = new List<int>();
+                        for (int i = 0; i < lessonName.Length; i++)
+                        {
+                            if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                            {
+                                newlineIndexes.Add(i);
+                            }
+                        }
+                        
+                        if (newlineIndexes.Count > 0)
+                        {
+                            foreach (var newlineIndex in newlineIndexes)
+                            {
+                                lessonName = lessonName.Insert(newlineIndex, "\n");
+                            }
+                        }
 
                         message +=
                             $"*Пара: №{lesson.Number + 1}*" +
@@ -289,7 +299,7 @@ public class ParserService : IParserService
 
                 if (groupInfo.Lessons.Count < 1)
                 {
-                    message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
+                    message = $"У {groupInfo.Number} группы нет пар";
                     continue;
                 }
 
@@ -299,26 +309,26 @@ public class ParserService : IParserService
                 {
                     var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
                     var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                    //var newlineIndexes = new List<int>();
-                    // for (int i = 0; i < lessonName.Length; i++)
-                    // {
-                    //     if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
-                    //     {
-                    //         newlineIndexes.Add(i);
-                    //     }
-                    // }
-                    //
-                    // if (newlineIndexes.Count > 0)
-                    // {
-                    //     foreach (var newlineIndex in newlineIndexes)
-                    //     {
-                    //         lessonName = lessonName.Insert(newlineIndex, "\n");
-                    //     }
-                    // }
+                    var newlineIndexes = new List<int>();
+                     for (int i = 0; i < lessonName.Length; i++)
+                     {
+                         if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                         {
+                             newlineIndexes.Add(i);
+                         }
+                     }
+                    
+                     if (newlineIndexes.Count > 0)
+                     {
+                         foreach (var newlineIndex in newlineIndexes)
+                         {
+                             lessonName = lessonName.Insert(newlineIndex, "\n");
+                         }
+                     }
 
                     message +=
                         $"*Пара: №{lesson.Number}*" +
-                        $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
+                        $"\n{(lessonName.Length < 2 ? "Предмет: -" : $"{lessonName}")}" +
                         $"\n{(cabinet.Length < 2 ? "Каб: -" : $"Каб: {cabinet}")}" +
                         $"\n\n";
                 }
