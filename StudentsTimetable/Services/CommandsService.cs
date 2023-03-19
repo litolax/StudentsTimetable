@@ -21,7 +21,7 @@ namespace StudentsTimetable.Services
         public CommandsService(IInterfaceService interfaceService, IAccountService accountService,
             IParserService parserService, IMongoService mongoService, IBotService botService)
         {
-            Core.OnMessageReceive += OnMessageReceive;
+            Core.OnMessageReceive += this.OnMessageReceive;
             
             this._interfaceService = interfaceService;
             this._accountService = accountService;
@@ -117,8 +117,8 @@ namespace StudentsTimetable.Services
                 {
                     var lowerMessageText = messageText.ToLower();
                     
-                    if (lowerMessageText.Contains("/notify"))
-                        await this._parserService.SendNewDayTimetables();
+                   // if (lowerMessageText.Contains("/notify"))
+                       // await this._parserService.SendNewDayTimetables();
                 }
                 
                 await this._interfaceService.NotifyAllUsers(message);

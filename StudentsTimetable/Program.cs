@@ -29,14 +29,10 @@ namespace StudentsTimetable
             serviceProvider.GetService<ICommandsService>();
             var parserService = serviceProvider.GetService<IParserService>()!;
 
-#if !DEBUG
-             Thread.Sleep(new Random().Next(60_000, 180_000));
-#endif
-
             try
             {
                 await parserService.ParseWeekTimetables();
-                // await parserService.ParseDayTimetables();
+                await parserService.ParseDayTimetables();
             }
             catch (Exception e)
             {

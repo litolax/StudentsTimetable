@@ -7,14 +7,11 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using StudentsTimetable.Models;
-using Syncfusion.XlsIO;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Config;
-using TelegramBot_Timetable_Core.Models;
 using TelegramBot_Timetable_Core.Services;
-using File = System.IO.File;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -34,13 +31,16 @@ public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
     private readonly IBotService _botService;
+    private readonly IConfig<MainConfig> _config;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
+    private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
     private string LastDayHtmlContent { get; set; }
     private string LastWeekHtmlContent { get; set; }
 
     private bool _weekParseStarted = false;
+    private bool _dayParseStarted = false;
 
     public List<string> Groups { get; set; } = new()
     {
@@ -52,16 +52,17 @@ public class ParserService : IParserService
 
     public List<Day> Timetables { get; set; } = new();
 
-    public ParserService(IMongoService mongoService, IBotService botService)
+    public ParserService(IMongoService mongoService, IBotService botService, IConfig<MainConfig> config)
     {
         this._mongoService = mongoService;
         this._botService = botService;
+        this._config = config;
 
-        // var parseDayTimer = new Timer(10000)
-        // {
-        //     AutoReset = true, Enabled = true
-        // };
-        // parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
+        var parseDayTimer = new Timer(150_000)
+        {
+            AutoReset = true, Enabled = true
+        };
+        parseDayTimer.Elapsed += async (sender, args) => { await this.NewDayTimetableCheck(); };
 
         var parseWeekTimer = new Timer(150_000)
         {
@@ -75,205 +76,120 @@ public class ParserService : IParserService
         };
     }
 
-    public async Task ParseDayTimetables()
+    public Task ParseDayTimetables()
     {
-        var parseInfo = (await this._mongoService.Database.GetCollection<Info>("Info")
-                .FindAsync(i => true))
-            .ToList()
-            .First();
+        if (this._dayParseStarted) return Task.CompletedTask;
+        this._dayParseStarted = true;
 
-        if (!parseInfo.ParseAllowed) return;
+        var options = new ChromeOptions();
 
-        List<Day> Days = new List<Day>();
-        List<GroupInfo> groupInfos = new List<GroupInfo>();
-        var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
-        var web = new HtmlWeb();
+        options.AddArgument("headless");
+        options.AddArgument("--no-sandbox");
+        options.AddArguments("--disable-dev-shm-usage");
 
-        var doc = web.Load(url);
-        this.LastDayHtmlContent = doc.DocumentNode.InnerHtml;
+        var driver = new ChromeDriver(options);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
 
-        var tableToExcel = new HtmlTableToExcel.HtmlTableToExcel();
-        byte[] converted = tableToExcel.Process(doc.Text);
-        var obj = Utils.ByteArrayToObject(converted);
-        obj.SaveAs(new FileInfo("./timetable.xlsx"));
+        driver.Navigate().GoToUrl(DayUrl);
 
-        var excelEngine = new ExcelEngine();
-
-        await using (var stream = File.Open(parseInfo.LoadFixFile ? "./fix.xlsx" : "./timetable.xlsx", FileMode.Open,
-                         FileAccess.ReadWrite))
+        var content = driver.FindElement(By.Id("wrapperTables"));
+        if (content is null)
         {
-            var workbook = excelEngine.Excel.Workbooks.Open(stream);
-            var firstSheet = workbook.Worksheets["sheet1"];
+            this._dayParseStarted = false;
+            return Task.CompletedTask;
+        }
 
-            firstSheet.InsertColumn(firstSheet.Columns.Length + 1, 3);
-            firstSheet.InsertRow(firstSheet.Rows.Length + 1, 20);
+        this.LastDayHtmlContent = content.Text;
+        List<GroupInfo> groupInfos = new List<GroupInfo>();
+        var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
+        foreach (var group in this.Groups)
+        {
             try
             {
-                #region ParseDayNamesAndIndexes
+                GroupInfo groupInfo = new GroupInfo();
 
-                var groupTableWithIndexesWithoutSame =
-                    new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
-                for (int i = 0; i < firstSheet.Rows.Length; i++)
+                for (var i = 1; i < groupsAndLessons.Count; i += 2)
                 {
-                    var parsedValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
-                    if ((!parsedValue.Contains("День")) ||
-                        groupTableWithIndexesWithoutSame.ContainsValue(parsedValue)) continue;
+                    if (groupsAndLessons[i - 1].Text.Split('-')[0].Trim() != group) continue;
 
-                    groupTableWithIndexesWithoutSame.Add(i, parsedValue);
-                }
+                    List<Lesson> lessons = new List<Lesson>();
+                    var lessonsElements = groupsAndLessons[i].FindElements(By.XPath(".//table/tbody/tr")).ToList();
 
-                var groupTableWithIndexesWithSame =
-                    new Dictionary<int, string>(); //парсим тут дни недели и их индексы в таблиуе
-                for (int i = 0; i < firstSheet.Rows.Length; i++)
-                {
-                    var parsedValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
-                    if (!parsedValue.Contains("День")) continue;
+                    if (lessonsElements.Count < 1) continue;
 
-                    groupTableWithIndexesWithSame.Add(i, parsedValue);
-                }
+                    var lessonNumbers = lessonsElements[0].FindElements(By.XPath(".//th")).ToList();
+                    var lessonNames = lessonsElements[1].FindElements(By.XPath(".//td")).ToList();
+                    var lessonCabinets = lessonsElements[2].FindElements(By.XPath(".//td")).ToList();
 
-                #endregion
-
-                #region ParseLessonsIndexes
-
-                var startLessonsIndexes =
-                    new Dictionary<int, string>(); //парсим тут пары
-                for (int i = 0; i < firstSheet.Rows.Length; i++)
-                {
-                    var newValue = Utils.HtmlTagsFix(firstSheet.Rows[i].Cells[0].Value);
-                    if (!newValue.Contains("Дисциплина")) continue;
-
-                    startLessonsIndexes.Add(i, newValue);
-                }
-
-                #endregion
-
-                string lastContent = string.Empty;
-
-                for (int i = 0; i < groupTableWithIndexesWithSame.Count; i++)
-                {
-                    for (int j = 1;
-                         int.TryParse(
-                             firstSheet.Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1].Cells[j].DisplayText,
-                             out _);
-                         j++)
+                    for (int j = 0; j < lessonNumbers.Count; j++)
                     {
-                        string lessonName = string.Empty;
-                        string cabinet = string.Empty;
-                        var groupInfo = new GroupInfo();
-                        int lessonIndex = 0;
+                        string cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
+                            ? "-"
+                            : lessonCabinets[j].Text.Replace("\r\n", "");
 
-                        var parsedValue = firstSheet.Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1].Cells[j]
-                            .DisplayText;
-                        if (string.Equals(lastContent, parsedValue)) continue;
-
-                        groupInfo.Date = groupTableWithIndexesWithSame.Values.ToList()[i];
-                        groupInfo.Number = int.Parse(parsedValue);
-                        //сверху мы спарсили саму группу
-
-                        int lessonsCount;
-
-                        if (groupTableWithIndexesWithSame.Count <= i + 1) lessonsCount = 10;
-                        else
-                            lessonsCount = groupTableWithIndexesWithSame.Keys.ToList()[i + 1] -
-                                           (groupTableWithIndexesWithSame.Keys.ToList()[i] + 4);
-
-                        for (int h = 0; h < lessonsCount; h++)
+                        lessons.Add(new Lesson()
                         {
-                            cabinet = firstSheet
-                                .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                .Cells[j + 1]
-                                .RichText.Text;
-                            lessonName = firstSheet
-                                .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                .Cells[j + 1 - 1]
-                                .RichText.Text;
-
-                            if (string.Equals(cabinet, lessonName))
-                            {
-                                int index = 1;
-                                while (string.Equals(cabinet, lessonName) && cabinet.Length > 1 &&
-                                       lessonName.Length > 1)
-                                {
-                                    cabinet = firstSheet
-                                        .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                        .Cells[j + 1 + index].DisplayText;
-                                    lessonName = firstSheet
-                                        .Rows[groupTableWithIndexesWithSame.Keys.ToList()[i] + 1 + 1 + 2 + lessonIndex]
-                                        .Cells[j + 1 - 1].DisplayText;
-                                    index++;
-                                }
-                            }
-
-                            groupInfo.Lessons.Add(new Lesson()
-                            {
-                                Group = parsedValue,
-                                Cabinet = cabinet,
-                                Name = lessonName,
-                                Number = lessonIndex
-                            });
-
-                            lessonIndex++;
-                        }
-
-                        //обновили инфу, идем дальше
-                        lastContent = parsedValue;
-                        groupInfos.Add(groupInfo);
-                    }
-                }
-
-                foreach (var groupInfo in groupInfos)
-                {
-                    int count = 0;
-                    groupInfo.Lessons.Reverse();
-                    foreach (var lesson in groupInfo.Lessons)
-                    {
-                        if (lesson.Name.Length < 1) count++;
-                        else break;
+                            Number = int.Parse(lessonNumbers[j].Text.Replace("№", "")),
+                            Cabinet = cabinet,
+                            Group = group,
+                            Name = lessonNames[j].Text
+                        });
                     }
 
-                    groupInfo.Lessons.RemoveRange(0, count);
-                    groupInfo.Lessons.Reverse();
+                    groupInfo.Number = int.Parse(group);
+                    groupInfo.Lessons = lessons;
+                    groupInfos.Add(groupInfo);
+                    break;
                 }
-
-                for (int i = 0; i < groupTableWithIndexesWithoutSame.Count; i++)
-                {
-                    var date = groupTableWithIndexesWithoutSame.Values.ToList()[i];
-                    var info = groupInfos.Where(g => g.Date == groupTableWithIndexesWithoutSame.Values.ToList()[i])
-                        .ToList();
-                    Days.Add(new Day()
-                    {
-                        Date = date,
-                        GroupInfos = info
-                    });
-                }
-
-                lock (this.Timetables) this.Timetables = Days;
             }
             catch (Exception e)
             {
-                return;
+                if (this._config.Entries.Administrators is not { } administrators) continue;
+                var adminTelegramId = administrators.FirstOrDefault();
+                if (adminTelegramId == default) continue;
+
+                this._botService.SendMessage(new SendMessageArgs(adminTelegramId, e.Message));
+                this._botService.SendMessage(new SendMessageArgs(adminTelegramId,
+                    "Ошибка дневного расписания в группе: " + group));
             }
         }
 
-        bool hasNewTimetables = false;
-        var timetablesCollection = this._mongoService.Database.GetCollection<Day>("DayTimetables");
-        var dbTables = (await timetablesCollection.FindAsync(table => true)).ToList();
-
-        this.Timetables.ForEach(t =>
+        foreach (var groupInfo in groupInfos)
         {
-            if (!dbTables.Exists(table => table.Date == t.Date))
+            int count = 0;
+            groupInfo.Lessons.Reverse();
+            foreach (var lesson in groupInfo.Lessons)
             {
-                timetablesCollection.InsertOneAsync(t);
-                hasNewTimetables = true;
+                if (lesson.Name.Length < 1) count++;
+                else break;
             }
-        });
 
-        if (hasNewTimetables)
-        {
-            await this.SendNewDayTimetables();
+            groupInfo.Lessons.RemoveRange(0, count);
+            groupInfo.Lessons.Reverse();
+
+            if (groupInfo.Lessons.Count < 1) continue;
+
+            for (int i = 0; i < groupInfo.Lessons.First().Number; i++)
+            {
+                groupInfo.Lessons.Add(new Lesson()
+                {
+                    Cabinet = "-",
+                    Group = groupInfo.Number.ToString(),
+                    Name = "-",
+                    Number = i + 1
+                });
+            }
+
+            groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
         }
+
+        this.Timetables.Add(new Day()
+        {
+            GroupInfos = groupInfos
+        });
+        this._dayParseStarted = false;
+        return Task.CompletedTask;
     }
 
     public async Task SendNewDayTimetables()
@@ -311,27 +227,27 @@ public class ParserService : IParserService
                     {
                         var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
                         var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                        var newlineIndexes = new List<int>();
-                        for (int g = 0; g < lessonName.Length; g++)
-                        {
-                            if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
-                            {
-                                newlineIndexes.Add(g);
-                            }
-                        }
-
-                        if (newlineIndexes.Count > 0)
-                        {
-                            foreach (var newlineIndex in newlineIndexes)
-                            {
-                                lessonName = lessonName.Insert(newlineIndex, "\n");
-                            }
-                        }
+                        // var newlineIndexes = new List<int>();
+                        // for (int i = 0; i < lessonName.Length; i++)
+                        // {
+                        //     if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                        //     {
+                        //         newlineIndexes.Add(i);
+                        //     }
+                        // }
+                        //
+                        // if (newlineIndexes.Count > 0)
+                        // {
+                        //     foreach (var newlineIndex in newlineIndexes)
+                        //     {
+                        //         lessonName = lessonName.Insert(newlineIndex, "\n");
+                        //     }
+                        // }
 
                         message +=
                             $"*Пара: №{lesson.Number + 1}*" +
                             $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-                            $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
+                            $"\n{(cabinet.Length < 2 ? "Каб: -" : ($"Каб: {cabinet}"))}" +
                             $"\n\n";
                     }
                 }
@@ -352,90 +268,67 @@ public class ParserService : IParserService
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
-        //todo спилить
-        this._botService.SendMessage(new SendMessageArgs(user.UserId, "Дневное расписание временно недоступно"));
+        if (user.Group is null)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
+            return;
+        }
 
-        // if (user.Group is null)
-        // {
-        //     try
-        //     {
-        //         await bot.SendMessageAsync(user.UserId, "Вы еще не выбрали группу");
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine(e);
-        //     }
-        //
-        //     return;
-        // }
-        //
-        // if (this.Timetables.Count < 1)
-        // {
-        //     try
-        //     {
-        //         await bot.SendMessageAsync(user.UserId, $"У {user.Group} группы нет пар");
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine(e);
-        //     }
-        //
-        //     return;
-        // }
-        //
-        // foreach (var day in this.Timetables)
-        // {
-        //     var message = day.Date + "\n";
-        //     foreach (var groupInfo in day.GroupInfos)
-        //     {
-        //         if (int.Parse(user.Group) != groupInfo.Number) continue;
-        //
-        //         if (groupInfo.Lessons.Count < 1)
-        //         {
-        //             message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
-        //             continue;
-        //         }
-        //
-        //         message += $"Группа: *{user.Group}*\n\n";
-        //
-        //         foreach (var lesson in groupInfo.Lessons)
-        //         {
-        //             var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-        //             var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-        //             var newlineIndexes = new List<int>();
-        //             for (int g = 0; g < lessonName.Length; g++)
-        //             {
-        //                 if (int.TryParse(lessonName[g].ToString(), out _) && g != 0)
-        //                 {
-        //                     newlineIndexes.Add(g);
-        //                 }
-        //             }
-        //
-        //             if (newlineIndexes.Count > 0)
-        //             {
-        //                 foreach (var newlineIndex in newlineIndexes)
-        //                 {
-        //                     lessonName = lessonName.Insert(newlineIndex, "\n");
-        //                 }
-        //             }
-        //
-        //             message +=
-        //                 $"*Пара: №{lesson.Number + 1}*" +
-        //                 $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-        //                 $"\n{(cabinet.Length < 2 ? "-" : ($"Каб: {cabinet}"))}" +
-        //                 $"\n\n";
-        //         }
-        //     }
-        //
-        //     try
-        //     {
-        //         await bot.SendMessageAsync(user.UserId, message, parseMode: ParseMode.Markdown);
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine(e);
-        //     }
-        //}
+        if (this.Timetables.Count < 1)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
+            return;
+        }
+
+        foreach (var day in this.Timetables)
+        {
+            var message = day.Date + "\n";
+            foreach (var groupInfo in day.GroupInfos)
+            {
+                if (int.Parse(user.Group) != groupInfo.Number) continue;
+
+                if (groupInfo.Lessons.Count < 1)
+                {
+                    message = $"У {groupInfo.Number} группы нет пар на {day.Date}";
+                    continue;
+                }
+
+                message += $"Группа: *{user.Group}*\n\n";
+
+                foreach (var lesson in groupInfo.Lessons)
+                {
+                    var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+                    var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+                    //var newlineIndexes = new List<int>();
+                    // for (int i = 0; i < lessonName.Length; i++)
+                    // {
+                    //     if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                    //     {
+                    //         newlineIndexes.Add(i);
+                    //     }
+                    // }
+                    //
+                    // if (newlineIndexes.Count > 0)
+                    // {
+                    //     foreach (var newlineIndex in newlineIndexes)
+                    //     {
+                    //         lessonName = lessonName.Insert(newlineIndex, "\n");
+                    //     }
+                    // }
+
+                    message +=
+                        $"*Пара: №{lesson.Number}*" +
+                        $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
+                        $"\n{(cabinet.Length < 2 ? "Каб: -" : $"Каб: {cabinet}")}" +
+                        $"\n\n";
+                }
+            }
+
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
+            {
+                ParseMode = ParseMode.Markdown
+            });
+        }
     }
 
     public async Task ParseWeekTimetables()
@@ -494,7 +387,8 @@ public class ParserService : IParserService
             }
             catch (Exception e)
             {
-                var adminTelegramId = new Config<MainConfig>().Entries.Administrators.FirstOrDefault();
+                if (this._config.Entries.Administrators is not { } administrators) continue;
+                var adminTelegramId = administrators.FirstOrDefault();
                 if (adminTelegramId == default) continue;
 
                 this._botService.SendMessage(new SendMessageArgs(adminTelegramId, e.Message));
@@ -556,7 +450,7 @@ public class ParserService : IParserService
         if (users is null) return;
 
         var tasks = new List<Task>();
-        
+
         foreach (var user in users)
         {
             if (user.Group is null || !user.Notifications) continue;
@@ -568,28 +462,41 @@ public class ParserService : IParserService
         await Task.WhenAll(tasks);
     }
 
-    // private async Task NewDayTimetableCheck()
-    // {
-    //     var url = "http://mgke.minsk.edu.by/ru/main.aspx?guid=3831";
-    //     var web = new HtmlWeb();
-    //     var doc = web.Load(url);
-    //     if (this.LastDayHtmlContent == doc.DocumentNode.InnerHtml) return;
-    //
-    //     await this.ParseDayTimetables();
-    // }
+    private Task NewDayTimetableCheck()
+    {
+        var options = new ChromeOptions();
 
-    private async Task NewWeekTimetableCheck()
+        options.AddArgument("headless");
+        options.AddArgument("--no-sandbox");
+        options.AddArguments("--disable-dev-shm-usage");
+
+        var driver = new ChromeDriver(options);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
+
+        driver.Navigate().GoToUrl(DayUrl);
+
+        var content = driver.FindElement(By.Id("wrapperTables"));
+
+        if (this.LastDayHtmlContent == content.Text) return Task.CompletedTask;
+
+        _ = this.ParseDayTimetables().ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+        return Task.FromResult(Task.CompletedTask);
+    }
+
+    private Task NewWeekTimetableCheck()
     {
         var web = new HtmlWeb();
         var doc = web.Load(WeekUrl);
         var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
-        if (content == default) return;
+        if (content == default) return Task.CompletedTask;
 
-        if (this.LastWeekHtmlContent == content.InnerText) return;
+        if (this.LastWeekHtmlContent == content.InnerText) return Task.CompletedTask;
 
-        _ = this.ParseWeekTimetables().ContinueWith((t) =>
-        {
-            Console.WriteLine(t.Exception?.InnerException);
-        }, TaskContinuationOptions.OnlyOnFaulted);
+        _ = this.ParseWeekTimetables().ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+        return Task.CompletedTask;
     }
 }
