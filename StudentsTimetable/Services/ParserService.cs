@@ -169,9 +169,7 @@ public class ParserService : IParserService
                     "Ошибка дневного расписания в группе: " + group));
             }
         }
-
-        driver.Quit();
-        driver.Close();
+        
         driver.Dispose();
 
         foreach (var groupInfo in groupInfos)
@@ -203,7 +201,7 @@ public class ParserService : IParserService
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
         }
 
-        this.Timetable.Add(new Day()
+        this.TempTimetable.Add(new Day()
         {
             GroupInfos = groupInfos
         });
@@ -217,7 +215,16 @@ public class ParserService : IParserService
 
     private void ValidateTimetableHashes()
     {
-        for (var i = 0; i < this.TempTimetable.Count && i < this.Timetable.Count; i++)
+        if (this.TempTimetable.Count > this.Timetable.Count)
+        {
+            this.Timetable.Clear();
+            this.Timetable = this.TempTimetable.ToList();
+            this.TempTimetable.Clear();
+            _ = this.SendNewDayTimetables(null, true);
+            return;
+        }
+        
+        for (var i = 0; i < this.TempTimetable.Count; i++)
         {
             var tempDay = this.TempTimetable[i];
             var day = this.Timetable[i];
@@ -246,16 +253,19 @@ public class ParserService : IParserService
                 }
             }
         }
+
+        this.Timetable.Clear();
+        this.Timetable = this.TempTimetable.ToList();;
+        this.TempTimetable.Clear();
     }
 
     private async Task SendNewDayTimetables(string? group, bool all = false)
     {
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
-        var users = (await userCollection.FindAsync(u => true)).ToList();
+        var users = (await userCollection.FindAsync(u => all || u.Group == group)).ToList();
 
-        foreach (var user in users)
+        foreach (var user in users.Where(user => user.Notifications && user.Group is not null))
         {
-            if (!user.Notifications || user.Group is null) continue;
             if (this.Timetable.Count < 1)
             {
                 this._botService.SendMessage(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
@@ -263,49 +273,21 @@ public class ParserService : IParserService
             }
 
             var tasks = new List<Task>();
+
             foreach (var day in this.Timetable)
             {
                 var message = day.Date + "\n";
 
-                foreach (var groupInfo in day.GroupInfos)
+                foreach (var groupInfo in day.GroupInfos.Where(groupInfo =>
+                             user.Group != null && int.Parse(user.Group) == groupInfo.Number))
                 {
-                    if (int.Parse(user.Group) != groupInfo.Number) continue;
-
                     if (groupInfo.Lessons.Count < 1)
                     {
                         message = $"У {groupInfo.Number} группы нет пар";
-                        continue;
+                        break;
                     }
 
-                    message += $"Группа: *{user.Group}*\n\n";
-
-                    foreach (var lesson in groupInfo.Lessons)
-                    {
-                        var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-                        var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                        var newlineIndexes = new List<int>();
-                        for (int i = 0; i < lessonName.Length; i++)
-                        {
-                            if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
-                            {
-                                newlineIndexes.Add(i);
-                            }
-                        }
-
-                        if (newlineIndexes.Count > 0)
-                        {
-                            foreach (var newlineIndex in newlineIndexes)
-                            {
-                                lessonName = lessonName.Insert(newlineIndex, "\n");
-                            }
-                        }
-
-                        message +=
-                            $"*Пара: №{lesson.Number + 1}*" +
-                            $"\n{(lessonName.Length < 2 ? "-" : lessonName)}" +
-                            $"\n{(cabinet.Length < 2 ? "Каб: -" : ($"Каб: {cabinet}"))}" +
-                            $"\n\n";
-                    }
+                    message = this.CreateDayTimetableMessage(groupInfo);
                 }
 
                 tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
@@ -338,46 +320,17 @@ public class ParserService : IParserService
 
         foreach (var day in this.Timetable)
         {
-            var message = day.Date + "\n";
-            foreach (var groupInfo in day.GroupInfos)
-            {
-                if (int.Parse(user.Group) != groupInfo.Number) continue;
+            string message = day.Date + "\n";
 
+            foreach (var groupInfo in day.GroupInfos.Where(groupInfo => int.Parse(user.Group) == groupInfo.Number))
+            {
                 if (groupInfo.Lessons.Count < 1)
                 {
                     message = $"У {groupInfo.Number} группы нет пар";
-                    continue;
+                    break;
                 }
 
-                message += $"Группа: *{user.Group}*\n\n";
-
-                foreach (var lesson in groupInfo.Lessons)
-                {
-                    var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-                    var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
-                    var newlineIndexes = new List<int>();
-                    for (int i = 0; i < lessonName.Length; i++)
-                    {
-                        if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
-                        {
-                            newlineIndexes.Add(i);
-                        }
-                    }
-
-                    if (newlineIndexes.Count > 0)
-                    {
-                        foreach (var newlineIndex in newlineIndexes)
-                        {
-                            lessonName = lessonName.Insert(newlineIndex, "\n");
-                        }
-                    }
-
-                    message +=
-                        $"*Пара: №{lesson.Number}*" +
-                        $"\n{(lessonName.Length < 2 ? "Предмет: -" : $"{lessonName}")}" +
-                        $"\n{(cabinet.Length < 2 ? "Каб: -" : $"Каб: {cabinet}")}" +
-                        $"\n\n";
-                }
+                message = this.CreateDayTimetableMessage(groupInfo);
             }
 
             await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
@@ -385,6 +338,43 @@ public class ParserService : IParserService
                 ParseMode = ParseMode.Markdown
             });
         }
+    }
+
+    private string CreateDayTimetableMessage(GroupInfo groupInfo)
+    {
+        string message = string.Empty;
+
+        message += $"Группа: *{groupInfo.Number}*\n\n";
+
+        foreach (var lesson in groupInfo.Lessons)
+        {
+            var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+            var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+            var newlineIndexes = new List<int>();
+            for (int i = 0; i < lessonName.Length; i++)
+            {
+                if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                {
+                    newlineIndexes.Add(i);
+                }
+            }
+
+            if (newlineIndexes.Count > 0)
+            {
+                foreach (var newlineIndex in newlineIndexes)
+                {
+                    lessonName = lessonName.Insert(newlineIndex, "\n");
+                }
+            }
+
+            message +=
+                $"*Пара: №{lesson.Number}*" +
+                $"\n{(lessonName.Length < 2 ? "Предмет: -" : $"{lessonName}")}" +
+                $"\n{(cabinet.Length < 2 ? "Каб: -" : $"Каб: {cabinet}")}" +
+                $"\n\n";
+        }
+
+        return message;
     }
 
     public async Task ParseWeekTimetables()
@@ -452,8 +442,6 @@ public class ParserService : IParserService
             }
         }
 
-        driver.Quit();
-        driver.Close();
         driver.Dispose();
 
         if (!dbTables.Exists(table => table.Date.Trim() == newDate))
@@ -534,8 +522,6 @@ public class ParserService : IParserService
 
         var content = driver.FindElement(By.Id("wrapperTables")).Text;
 
-        driver.Quit();
-        driver.Close();
         driver.Dispose();
 
         if (this.LastDayHtmlContent == content) return Task.CompletedTask;
