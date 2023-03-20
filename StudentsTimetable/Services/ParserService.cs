@@ -86,13 +86,7 @@ public class ParserService : IParserService
         if (this._dayParseStarted) return;
         this._dayParseStarted = true;
 
-        var options = new ChromeOptions();
-
-        options.AddArgument("headless");
-        options.AddArgument("--no-sandbox");
-        options.AddArguments("--disable-dev-shm-usage");
-
-        var driver = new ChromeDriver(options);
+        var driver = Utils.CreateChromeDriver();
         driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
 
         driver.Navigate().GoToUrl(DayUrl);
@@ -400,14 +394,8 @@ public class ParserService : IParserService
         var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
         var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
-
-        var options = new ChromeOptions();
-
-        options.AddArgument("headless");
-        options.AddArgument("--no-sandbox");
-        options.AddArguments("--disable-dev-shm-usage");
-
-        var driver = new ChromeDriver(options);
+        
+        var driver = Utils.CreateChromeDriver();
 
         foreach (var group in this.Groups)
         {
@@ -511,13 +499,7 @@ public class ParserService : IParserService
 
     private Task NewDayTimetableCheck()
     {
-        var options = new ChromeOptions();
-
-        options.AddArgument("headless");
-        options.AddArgument("--no-sandbox");
-        options.AddArguments("--disable-dev-shm-usage");
-
-        var driver = new ChromeDriver(options);
+        var driver = Utils.CreateChromeDriver();
         driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
 
         driver.Navigate().GoToUrl(DayUrl);
