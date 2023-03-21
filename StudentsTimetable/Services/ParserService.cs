@@ -289,7 +289,8 @@ public class ParserService : IParserService
                     message = this.CreateDayTimetableMessage(groupInfo);
                 }
 
-                tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
+                tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
+                    message.Length < 1 ? $"У вашей группы нет пар" : message)
                 {
                     ParseMode = ParseMode.Markdown
                 }));
@@ -332,7 +333,8 @@ public class ParserService : IParserService
                 message = this.CreateDayTimetableMessage(groupInfo);
             }
 
-            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, message)
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
+                message.Length < 1 ? $"У вашей группы нет пар" : message)
             {
                 ParseMode = ParseMode.Markdown
             });
