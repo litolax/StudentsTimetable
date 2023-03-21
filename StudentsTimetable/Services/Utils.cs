@@ -1,8 +1,8 @@
-﻿using System.Drawing;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using Size = System.Drawing.Size;
 
 namespace StudentsTimetable.Services;
 
