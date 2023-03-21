@@ -201,9 +201,9 @@ public class ParserService : IParserService
 
         this.TempTimetable.Add(new Day()
         {
-            GroupInfos = groupInfos
+            GroupInfos = new List<GroupInfo>(groupInfos)
         });
-        
+        groupInfos.Clear();
         await this.ValidateTimetableHashes();
         this._dayParseStarted = false;
     }
@@ -524,7 +524,7 @@ public class ParserService : IParserService
 
         driver.Dispose();
 
-        if (this.LastDayHtmlContent == content) return Task.CompletedTask;
+       if (this.LastDayHtmlContent == content) return Task.CompletedTask;
 
         _ = this.ParseDayTimetables().ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
             TaskContinuationOptions.OnlyOnFaulted);
