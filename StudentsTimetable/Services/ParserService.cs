@@ -58,7 +58,7 @@ public class ParserService : IParserService
         this._botService = botService;
         this._config = config;
 
-        var parseDayTimer = new Timer(100_000)
+        var parseDayTimer = new Timer(150_000)
         {
             AutoReset = true, Enabled = true
         };
@@ -81,9 +81,9 @@ public class ParserService : IParserService
         };
     }
 
-    public Task ParseDayTimetables()
+    public async Task ParseDayTimetables()
     {
-        if (this._dayParseStarted) return Task.CompletedTask;
+        if (this._dayParseStarted) return;
         this._dayParseStarted = true;
 
         var options = new ChromeOptions();
@@ -101,10 +101,8 @@ public class ParserService : IParserService
         if (content is null)
         {
             this._dayParseStarted = false;
-            driver.Quit();
-            driver.Close();
             driver.Dispose();
-            return Task.CompletedTask;
+            return;
         }
 
         this.LastDayHtmlContent = content.Text;
@@ -206,26 +204,27 @@ public class ParserService : IParserService
             GroupInfos = groupInfos
         });
         
-        _ = this.ValidateTimetableHashes();
+        await this.ValidateTimetableHashes();
         this._dayParseStarted = false;
-
-        return Task.CompletedTask;
     }
 
     private async Task ValidateTimetableHashes()
     {
-        if (this.TempTimetable.Count > this.Timetable.Count)
+        var tempTimetable = new List<Day>(this.TempTimetable);
+        this.TempTimetable.Clear();
+        
+        if (tempTimetable.Count > this.Timetable.Count)
         {
             this.Timetable.Clear();
-            this.TempTimetable.ForEach(e => this.Timetable.Add(e));
-            this.TempTimetable.Clear();
+            this.Timetable = new List<Day>(tempTimetable);
             await this.SendNewDayTimetables(null, true);
+            tempTimetable.Clear();
             return;
         }
 
-        for (var i = 0; i < this.TempTimetable.Count; i++)
+        for (var i = 0; i < tempTimetable.Count; i++)
         {
-            var tempDay = this.TempTimetable[i];
+            var tempDay = tempTimetable[i];
             var day = this.Timetable[i];
 
             for (int j = 0; j < tempDay.GroupInfos.Count; j++)
@@ -246,7 +245,7 @@ public class ParserService : IParserService
                     var tempLesson = tempLessons[h];
                     var lesson = groupInfo.Lessons[h];
 
-                    if (tempLesson.GetHashCode().Equals(lesson.GetHashCode())) continue;
+                    if (tempLesson.GetHashCode() == lesson.GetHashCode()) continue;
                     _ = this.SendNewDayTimetables(tempGroup.ToString());
                     break;
                 }
@@ -254,8 +253,8 @@ public class ParserService : IParserService
         }
 
         this.Timetable.Clear();
-        this.TempTimetable.ForEach(e => this.Timetable.Add(e));
-        this.TempTimetable.Clear();
+        this.Timetable = new List<Day>(tempTimetable);
+        tempTimetable.Clear();
     }
 
     private async Task SendNewDayTimetables(string? group, bool all = false)
