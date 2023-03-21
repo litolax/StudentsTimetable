@@ -58,7 +58,7 @@ public class ParserService : IParserService
         this._botService = botService;
         this._config = config;
 
-        var parseDayTimer = new Timer(150_000)
+        var parseDayTimer = new Timer(100_000)
         {
             AutoReset = true, Enabled = true
         };
@@ -169,7 +169,7 @@ public class ParserService : IParserService
                     "Ошибка дневного расписания в группе: " + group));
             }
         }
-        
+
         driver.Dispose();
 
         foreach (var groupInfo in groupInfos)
@@ -205,25 +205,24 @@ public class ParserService : IParserService
         {
             GroupInfos = groupInfos
         });
-
+        
+        _ = this.ValidateTimetableHashes();
         this._dayParseStarted = false;
-
-        this.ValidateTimetableHashes();
 
         return Task.CompletedTask;
     }
 
-    private void ValidateTimetableHashes()
+    private async Task ValidateTimetableHashes()
     {
         if (this.TempTimetable.Count > this.Timetable.Count)
         {
             this.Timetable.Clear();
-            this.Timetable = this.TempTimetable.ToList();
+            this.TempTimetable.ForEach(e => this.Timetable.Add(e));
             this.TempTimetable.Clear();
-            _ = this.SendNewDayTimetables(null, true);
+            await this.SendNewDayTimetables(null, true);
             return;
         }
-        
+
         for (var i = 0; i < this.TempTimetable.Count; i++)
         {
             var tempDay = this.TempTimetable[i];
@@ -238,7 +237,7 @@ public class ParserService : IParserService
 
                 if (groupInfo == default || tempLessons.Count != groupInfo.Lessons.Count)
                 {
-                    _ = this.SendNewDayTimetables(tempDay.GroupInfos[j].Number.ToString());
+                    _ = this.SendNewDayTimetables(tempGroup.ToString());
                     continue;
                 }
 
@@ -255,7 +254,7 @@ public class ParserService : IParserService
         }
 
         this.Timetable.Clear();
-        this.Timetable = this.TempTimetable.ToList();;
+        this.TempTimetable.ForEach(e => this.Timetable.Add(e));
         this.TempTimetable.Clear();
     }
 
@@ -269,7 +268,7 @@ public class ParserService : IParserService
             if (this.Timetable.Count < 1)
             {
                 this._botService.SendMessage(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
-                return;
+                continue;
             }
 
             var tasks = new List<Task>();
