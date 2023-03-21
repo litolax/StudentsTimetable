@@ -49,6 +49,12 @@ This telegram bot can notify people about new timetables.
 6. Install chromedriver (for week screenshots)
 * [chromeDriver](http://chromedriver.storage.googleapis.com/index.html)
 
+### Build
+#### Linux
+```markdown
+dotnet publish StudentsTimetable -c Release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true
+```
+
 <!-- CONTACT -->
 ## Contact
 Feel free to create issues, features or pull requests.
