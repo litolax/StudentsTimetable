@@ -7,5 +7,5 @@ public class Day
 {
     public ObjectId Id { get; set; }
     public string Date { get; set; }
-    [BsonIgnore] public List<GroupInfo> GroupInfos = new();
+    [BsonIgnore] public List<GroupInfo> GroupInfos { get; set; } = new();
 }
