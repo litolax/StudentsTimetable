@@ -282,7 +282,7 @@ public class ParserService : IParserService
                     if (groupInfo.Lessons.Count < 1)
                     {
                         message = $"У {groupInfo.Number} группы нет пар";
-                        break;
+                        continue;
                     }
 
                     message = this.CreateDayTimetableMessage(groupInfo);
@@ -326,7 +326,7 @@ public class ParserService : IParserService
                 if (groupInfo.Lessons.Count < 1)
                 {
                     message = $"У {groupInfo.Number} группы нет пар";
-                    break;
+                    continue;
                 }
 
                 message = this.CreateDayTimetableMessage(groupInfo);
