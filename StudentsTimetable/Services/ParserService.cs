@@ -255,6 +255,8 @@ public class ParserService : IParserService
 
     private async Task SendNewDayTimetables(string? group, bool all = false)
     {
+        Console.WriteLine("Изменение дневного расписания для: " + (all ? "Всех" : group));
+        
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var users = (await userCollection.FindAsync(u => all || u.Group == group)).ToList();
 
