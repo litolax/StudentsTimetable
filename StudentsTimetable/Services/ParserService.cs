@@ -98,6 +98,7 @@ public class ParserService : IParserService
         driver.Navigate().GoToUrl(DayUrl);
 
         var content = driver.FindElement(By.Id("wrapperTables"));
+        
         if (content is null)
         {
             this._dayParseStarted = false;
@@ -210,6 +211,7 @@ public class ParserService : IParserService
 
     private async Task ValidateTimetableHashes()
     {
+        if (this.TempTimetable.Any(e => e.GroupInfos.Count == 0)) return;
         var tempTimetable = new List<Day>(this.TempTimetable);
         this.TempTimetable.Clear();
         
