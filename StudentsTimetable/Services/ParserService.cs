@@ -1,11 +1,8 @@
 ﻿using HtmlAgilityPack;
 using MongoDB.Driver;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
-using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Processing;
 using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
@@ -64,9 +61,14 @@ public class ParserService : IParserService
         };
         parseDayTimer.Elapsed += async (sender, args) =>
         {
-            await this.NewDayTimetableCheck()
-                .ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
-                    TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await this.NewDayTimetableCheck();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         };
 
         var parseWeekTimer = new Timer(900_000)
@@ -75,9 +77,14 @@ public class ParserService : IParserService
         };
         parseWeekTimer.Elapsed += async (sender, args) =>
         {
-            await this.NewWeekTimetableCheck()
-                .ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
-                    TaskContinuationOptions.OnlyOnFaulted);
+            try
+            {
+                await this.NewWeekTimetableCheck();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         };
     }
 
@@ -520,7 +527,7 @@ public class ParserService : IParserService
         await Task.WhenAll(tasks);
     }
 
-    private Task NewDayTimetableCheck()
+    private async Task NewDayTimetableCheck()
     {
         var driver = Utils.CreateChromeDriver();
         driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
@@ -531,22 +538,34 @@ public class ParserService : IParserService
 
         driver.Dispose();
 
-       if (this.LastDayHtmlContent == content) return Task.CompletedTask;
+       if (this.LastDayHtmlContent == content) return;
 
-        return this.ParseDayTimetables().ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
-            TaskContinuationOptions.OnlyOnFaulted);
+       try
+       {
+           await this.ParseDayTimetables();
+       }
+       catch (Exception e)
+       {
+           Console.WriteLine(e);
+       }
     }
 
-    private Task NewWeekTimetableCheck()
+    private async Task NewWeekTimetableCheck()
     {
         var web = new HtmlWeb();
         var doc = web.Load(WeekUrl);
         var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
-        if (content == default) return Task.CompletedTask;
+        if (content == default) return;
 
-        if (this.LastWeekHtmlContent == content.InnerText) return Task.CompletedTask;
+        if (this.LastWeekHtmlContent == content.InnerText) return;
 
-        return this.ParseWeekTimetables().ContinueWith((t) => { Console.WriteLine(t.Exception?.InnerException); },
-            TaskContinuationOptions.OnlyOnFaulted);
+        try
+        {
+            await this.ParseWeekTimetables();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 }
