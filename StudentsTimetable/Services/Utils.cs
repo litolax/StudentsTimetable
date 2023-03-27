@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -45,7 +46,7 @@ public static class Utils
         driver.ExecuteScript("arguments[0].style='overflow-y: hidden; overflow-x: hidden'", all);
     }
 
-    public static ChromeDriver CreateChromeDriver()
+    public static (ChromeDriver chromeDriver, Process process) CreateChromeDriver()
     {
         var service = ChromeDriverService.CreateDefaultService();
         
@@ -68,7 +69,12 @@ public static class Utils
         options.AddArgument("--disable-dev-shm-usage");
         options.AddArgument("--log-level=3");
         options.AddArgument("--output=/dev/null");
+        options.AddUserProfilePreference("browser.cache.disk.enable", false);
+        options.AddUserProfilePreference("browser.cache.memory.enable", false);
 
-        return new ChromeDriver(service, options);
+        var driver = new ChromeDriver(service, options);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 30);
+
+        return (driver, Process.GetProcessById(service.ProcessId));
     }
 }

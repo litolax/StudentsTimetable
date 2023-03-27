@@ -99,9 +99,7 @@ public class ParserService : IParserService
 
         Console.WriteLine("Запущено дневное расписание");
 
-        var driver = Utils.CreateChromeDriver();
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
-
+        var (driver, process) = Utils.CreateChromeDriver();
         driver.Navigate().GoToUrl(DayUrl);
 
         var content = driver.FindElement(By.Id("wrapperTables"));
@@ -110,7 +108,9 @@ public class ParserService : IParserService
         {
             this._dayParseStarted = false;
             driver.Close();
+            driver.Quit();
             driver.Dispose();
+            process.Kill();
             return;
         }
 
@@ -178,7 +178,9 @@ public class ParserService : IParserService
         }
 
         driver.Close();
+        driver.Quit();
         driver.Dispose();
+        process.Kill();
 
         foreach (var groupInfo in groupInfos)
         {
@@ -222,21 +224,20 @@ public class ParserService : IParserService
     private async Task ValidateTimetableHashes(bool firstStart)
     {
         if (this._tempTimetable.Any(e => e.GroupInfos.Count == 0)) return;
-        var tempTimetable = new List<Day>(this._tempTimetable);
-        this._tempTimetable.Clear();
-
-        if (tempTimetable.Count > this._timetable.Count)
+        
+        if (this._tempTimetable.Count > this._timetable.Count)
         {
             this._timetable.Clear();
-            this._timetable = new List<Day>(tempTimetable);
+            this._timetable = new List<Day>(this._tempTimetable);
             await this.SendNewDayTimetables(null, firstStart, true);
-            tempTimetable.Clear();
+            this._tempTimetable.Clear();
             return;
         }
 
-        for (var i = 0; i < tempTimetable.Count; i++)
+        List<string> changedGroups = new();
+        for (var i = 0; i < this._tempTimetable.Count; i++)
         {
-            var tempDay = tempTimetable[i];
+            var tempDay = this._tempTimetable[i];
             var day = this._timetable[i];
 
             for (int j = 0; j < tempDay.GroupInfos.Count; j++)
@@ -248,7 +249,7 @@ public class ParserService : IParserService
 
                 if (groupInfo == default || tempLessons.Count != groupInfo.Lessons.Count)
                 {
-                    _ = this.SendNewDayTimetables(tempGroup.ToString(), firstStart);
+                    changedGroups.Add(tempGroup.ToString());
                     continue;
                 }
 
@@ -258,15 +259,20 @@ public class ParserService : IParserService
                     var lesson = groupInfo.Lessons[h];
 
                     if (tempLesson.GetHashCode() == lesson.GetHashCode()) continue;
-                    _ = this.SendNewDayTimetables(tempGroup.ToString(), firstStart);
+                    changedGroups.Add(tempGroup.ToString());
                     break;
                 }
             }
         }
-
+        
         this._timetable.Clear();
-        this._timetable = new List<Day>(tempTimetable);
-        tempTimetable.Clear();
+        this._timetable = new List<Day>(this._tempTimetable);
+        this._tempTimetable.Clear();
+        
+        changedGroups.ForEach(group =>
+        {
+            _ = this.SendNewDayTimetables(group.ToString(), firstStart);
+        });
     }
 
     private async Task SendNewDayTimetables(string? group, bool firstStart, bool all = false)
@@ -428,7 +434,7 @@ public class ParserService : IParserService
         // var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         // var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
-        var driver = Utils.CreateChromeDriver();
+        var (driver, process) = Utils.CreateChromeDriver();
 
         foreach (var group in this.Groups)
         {
@@ -466,9 +472,11 @@ public class ParserService : IParserService
                 this._botService.SendMessage(new SendMessageArgs(adminTelegramId, "Ошибка в группе: " + group));
             }
         }
-        
+
         driver.Close();
+        driver.Quit();
         driver.Dispose();
+        process.Kill();
 
         // if (!dbTables.Exists(table => table.Date.Trim() == newDate))
         // {
@@ -496,20 +504,20 @@ public class ParserService : IParserService
         }
 
         this._images.TryGetValue(user.Group, out var image);
-        
+
         if (image is null)
         {
             this._botService.SendMessage(new SendMessageArgs(user.UserId, "Увы, данная группа не найдена"));
             return;
         }
-        
+
         using (var ms = new MemoryStream())
         {
             await image.SaveAsync(ms, new PngEncoder());
 
             this._botService.SendPhoto(new SendPhotoArgs(user.UserId,
                 new InputFile(ms.ToArray(), $"Group - {user.Group}")));
-            
+
             await ms.DisposeAsync();
         }
     }
@@ -535,17 +543,18 @@ public class ParserService : IParserService
 
     private async Task NewDayTimetableCheck()
     {
-        var driver = Utils.CreateChromeDriver();
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 20);
-
+        var (driver, process) = Utils.CreateChromeDriver();
         driver.Navigate().GoToUrl(DayUrl);
 
-        var content = driver.FindElement(By.Id("wrapperTables")).Text;
-
+        var contentElement = driver.FindElement(By.Id("wrapperTables"));
+        bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
+        
         driver.Close();
+        driver.Quit();
         driver.Dispose();
+        process.Kill();
 
-        if (this.LastDayHtmlContent == content) return;
+        if (emptyContent || this.LastDayHtmlContent == contentElement.Text) return;
 
         try
         {
@@ -559,12 +568,17 @@ public class ParserService : IParserService
 
     private async Task NewWeekTimetableCheck()
     {
-        var web = new HtmlWeb();
-        var doc = web.Load(WeekUrl);
-        var content = doc.DocumentNode.SelectNodes("//div/div/div/div/div/div").FirstOrDefault();
-        if (content == default) return;
-
-        if (this.LastWeekHtmlContent == content.InnerText) return;
+        var (driver, process) = Utils.CreateChromeDriver();
+        driver.Navigate().GoToUrl(WeekUrl);
+        
+        var content = driver.FindElement(By.ClassName("entry")).Text;
+        
+        driver.Close();
+        driver.Quit();
+        driver.Dispose();
+        process.Kill();
+        
+        if (content == default || this.LastWeekHtmlContent == content) return;
 
         try
         {
