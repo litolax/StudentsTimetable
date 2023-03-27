@@ -69,8 +69,6 @@ public static class Utils
         options.AddArgument("--disable-dev-shm-usage");
         options.AddArgument("--log-level=3");
         options.AddArgument("--output=/dev/null");
-        options.AddUserProfilePreference("browser.cache.disk.enable", false);
-        options.AddUserProfilePreference("browser.cache.memory.enable", false);
 
         var driver = new ChromeDriver(service, options);
         driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 30);
