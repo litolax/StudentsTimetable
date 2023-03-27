@@ -46,8 +46,9 @@ public class ParserService : IParserService
         "76", "77", "78"
     };
 
-    public List<Day> TempTimetable { get; set; } = new();
-    public List<Day> Timetable { get; set; } = new();
+    private List<Day> _tempTimetable { get; set; } = new();
+    private List<Day> _timetable { get; set; } = new();
+    private Dictionary<string, Image> _images = new();
 
     public ParserService(IMongoService mongoService, IBotService botService, IConfig<MainConfig> config)
     {
@@ -95,7 +96,7 @@ public class ParserService : IParserService
             if (this._dayParseStarted) return;
             this._dayParseStarted = true;
         }
-        
+
         Console.WriteLine("Запущено дневное расписание");
 
         var driver = Utils.CreateChromeDriver();
@@ -104,17 +105,18 @@ public class ParserService : IParserService
         driver.Navigate().GoToUrl(DayUrl);
 
         var content = driver.FindElement(By.Id("wrapperTables"));
-        
+
         if (content is null)
         {
             this._dayParseStarted = false;
+            driver.Close();
             driver.Dispose();
             return;
         }
 
         this.LastDayHtmlContent = content.Text;
         List<GroupInfo> groupInfos = new List<GroupInfo>();
-        this.TempTimetable.Clear();
+        this._tempTimetable.Clear();
 
         var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
@@ -175,6 +177,7 @@ public class ParserService : IParserService
             }
         }
 
+        driver.Close();
         driver.Dispose();
 
         foreach (var groupInfo in groupInfos)
@@ -206,7 +209,7 @@ public class ParserService : IParserService
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
         }
 
-        this.TempTimetable.Add(new Day()
+        this._tempTimetable.Add(new Day()
         {
             GroupInfos = new List<GroupInfo>(groupInfos)
         });
@@ -218,14 +221,14 @@ public class ParserService : IParserService
 
     private async Task ValidateTimetableHashes(bool firstStart)
     {
-        if (this.TempTimetable.Any(e => e.GroupInfos.Count == 0)) return;
-        var tempTimetable = new List<Day>(this.TempTimetable);
-        this.TempTimetable.Clear();
-        
-        if (tempTimetable.Count > this.Timetable.Count)
+        if (this._tempTimetable.Any(e => e.GroupInfos.Count == 0)) return;
+        var tempTimetable = new List<Day>(this._tempTimetable);
+        this._tempTimetable.Clear();
+
+        if (tempTimetable.Count > this._timetable.Count)
         {
-            this.Timetable.Clear();
-            this.Timetable = new List<Day>(tempTimetable);
+            this._timetable.Clear();
+            this._timetable = new List<Day>(tempTimetable);
             await this.SendNewDayTimetables(null, firstStart, true);
             tempTimetable.Clear();
             return;
@@ -234,7 +237,7 @@ public class ParserService : IParserService
         for (var i = 0; i < tempTimetable.Count; i++)
         {
             var tempDay = tempTimetable[i];
-            var day = this.Timetable[i];
+            var day = this._timetable[i];
 
             for (int j = 0; j < tempDay.GroupInfos.Count; j++)
             {
@@ -261,8 +264,8 @@ public class ParserService : IParserService
             }
         }
 
-        this.Timetable.Clear();
-        this.Timetable = new List<Day>(tempTimetable);
+        this._timetable.Clear();
+        this._timetable = new List<Day>(tempTimetable);
         tempTimetable.Clear();
     }
 
@@ -278,7 +281,6 @@ public class ParserService : IParserService
                 this._botService.SendMessage(new SendMessageArgs(adminTelegramId,
                     "Изменение дневного расписания учеников для: " + (all ? "Всех" : group)));
             }
-            
         }
 
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
@@ -286,7 +288,7 @@ public class ParserService : IParserService
 
         foreach (var user in users.Where(user => user.Notifications && user.Group is not null))
         {
-            if (this.Timetable.Count < 1)
+            if (this._timetable.Count < 1)
             {
                 this._botService.SendMessage(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
                 continue;
@@ -294,7 +296,7 @@ public class ParserService : IParserService
 
             var tasks = new List<Task>();
 
-            foreach (var day in this.Timetable)
+            foreach (var day in this._timetable)
             {
                 var message = day.Date + "\n";
 
@@ -333,13 +335,13 @@ public class ParserService : IParserService
             return;
         }
 
-        if (this.Timetable.Count < 1)
+        if (this._timetable.Count < 1)
         {
             await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
             return;
         }
 
-        foreach (var day in this.Timetable)
+        foreach (var day in this._timetable)
         {
             string message = day.Date + "\n";
 
@@ -406,6 +408,7 @@ public class ParserService : IParserService
             if (this._weekParseStarted) return;
             this._weekParseStarted = true;
         }
+
         Console.WriteLine("Запущено недельное расписание");
 
         var web = new HtmlWeb();
@@ -424,31 +427,34 @@ public class ParserService : IParserService
         var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
         var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
-        
+
         var driver = Utils.CreateChromeDriver();
-        
+
         foreach (var group in this.Groups)
         {
             try
             {
-                var filePath = $"./photo/Группа - {group}.png";
-
                 driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
 
                 Utils.ModifyUnnecessaryElementsOnWebsite(ref driver);
 
-                var element = driver.FindElements(By.TagName("h2")).FirstOrDefault();
+                var element = driver.FindElement(By.TagName("h2"));
                 if (element == default) continue;
 
                 var actions = new Actions(driver);
                 actions.MoveToElement(element).Perform();
 
                 var screenshot = (driver as ITakesScreenshot).GetScreenshot();
+                if (this._images.TryGetValue(group, out var oldImage))
+                {
+                    oldImage.Dispose();
+                    this._images.Remove(group);
+                }
 
                 var image = Image.Load(screenshot.AsByteArray);
-
                 image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
-                await image.SaveAsPngAsync(filePath);
+
+                this._images.Add(group, image);
             }
             catch (Exception e)
             {
@@ -460,7 +466,8 @@ public class ParserService : IParserService
                 this._botService.SendMessage(new SendMessageArgs(adminTelegramId, "Ошибка в группе: " + group));
             }
         }
-
+        
+        driver.Close();
         driver.Dispose();
 
         if (!dbTables.Exists(table => table.Date.Trim() == newDate))
@@ -488,23 +495,22 @@ public class ParserService : IParserService
             return;
         }
 
-        Image? image;
-        try
-        {
-            image = await Image.LoadAsync($"./photo/Группа - {user.Group}.png");
-        }
-        catch
+        this._images.TryGetValue(user.Group, out var image);
+        
+        if (image is null)
         {
             this._botService.SendMessage(new SendMessageArgs(user.UserId, "Увы, данная группа не найдена"));
             return;
         }
-
+        
         using (var ms = new MemoryStream())
         {
             await image.SaveAsync(ms, new PngEncoder());
 
             this._botService.SendPhoto(new SendPhotoArgs(user.UserId,
                 new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png")));
+            
+            await ms.DisposeAsync();
         }
     }
 
@@ -536,18 +542,19 @@ public class ParserService : IParserService
 
         var content = driver.FindElement(By.Id("wrapperTables")).Text;
 
+        driver.Close();
         driver.Dispose();
 
-       if (this.LastDayHtmlContent == content) return;
+        if (this.LastDayHtmlContent == content) return;
 
-       try
-       {
-           await this.ParseDayTimetables();
-       }
-       catch (Exception e)
-       {
-           Console.WriteLine(e);
-       }
+        try
+        {
+            await this.ParseDayTimetables();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 
     private async Task NewWeekTimetableCheck()
