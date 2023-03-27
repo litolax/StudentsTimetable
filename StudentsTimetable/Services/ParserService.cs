@@ -424,9 +424,9 @@ public class ParserService : IParserService
             return;
         }
 
-        var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
-        var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
-        var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
+        // var newDate = doc.DocumentNode.SelectNodes("//h3")[0].InnerText.Trim();
+        // var dateDbCollection = this._mongoService.Database.GetCollection<Timetable>("WeekTimetables");
+        // var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
         var driver = Utils.CreateChromeDriver();
 
@@ -470,13 +470,13 @@ public class ParserService : IParserService
         driver.Close();
         driver.Dispose();
 
-        if (!dbTables.Exists(table => table.Date.Trim() == newDate))
-        {
-            await dateDbCollection.InsertOneAsync(new Timetable()
-            {
-                Date = newDate
-            });
-        }
+        // if (!dbTables.Exists(table => table.Date.Trim() == newDate))
+        // {
+        //     await dateDbCollection.InsertOneAsync(new Timetable()
+        //     {
+        //         Date = newDate
+        //     });
+        // }
 
         this._weekParseStarted = false;
         Console.WriteLine("Завершено недельное расписание");
@@ -508,7 +508,7 @@ public class ParserService : IParserService
             await image.SaveAsync(ms, new PngEncoder());
 
             this._botService.SendPhoto(new SendPhotoArgs(user.UserId,
-                new InputFile(ms.ToArray(), $"./photo/Группа - {user.Group}.png")));
+                new InputFile(ms.ToArray(), $"Group - {user.Group}")));
             
             await ms.DisposeAsync();
         }
