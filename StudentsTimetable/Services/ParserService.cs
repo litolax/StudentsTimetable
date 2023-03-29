@@ -319,7 +319,7 @@ public class ParserService : IParserService
                 }
 
                 tasks.Add(this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
-                    message.Length < 1 ? $"У вашей группы нет пар" : message)
+                    message.Trim().Length <= 1 ? $"У вашей группы нет пар" : message)
                 {
                     ParseMode = ParseMode.Markdown
                 }));
@@ -363,7 +363,7 @@ public class ParserService : IParserService
             }
 
             await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
-                message.Length < 1 ? $"У вашей группы нет пар" : message)
+                message.Trim().Length <= 1 ? $"У вашей группы нет пар" : message)
             {
                 ParseMode = ParseMode.Markdown
             });
