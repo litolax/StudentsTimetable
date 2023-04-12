@@ -12,12 +12,12 @@
       <PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
       <PackageReference Include="HtmlTableToExcel" Version="1.0.1" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
-      <PackageReference Include="MongoDB.Bson" Version="2.19.0" />
-      <PackageReference Include="MongoDB.Driver" Version="2.19.0" />
+      <PackageReference Include="MongoDB.Bson" Version="2.19.1" />
+      <PackageReference Include="MongoDB.Driver" Version="2.19.1" />
       <PackageReference Include="Selenium.Support" Version="4.8.2" />
       <PackageReference Include="Selenium.WebDriver" Version="4.8.2" />
-      <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0" />
-      <PackageReference Include="Telegram.BotAPI" Version="6.6.0" />
+      <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
+      <PackageReference Include="Telegram.BotAPI" Version="6.6.1" />
     </ItemGroup>
 
     <ItemGroup>
