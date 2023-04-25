@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: build
-          path: StudentsTimetable/Artifacts/**
+          path: StudentsTimetable/Artifacts
   upload:
     needs: build
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
         name: Download build artifact
         with:
           name: build
-          path: StudentsTimetable/Artifacts/**
+          path: StudentsTimetable/Artifacts
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -63,7 +63,7 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
           port: 41061
-          source: "StudentsTimetable/Artifacts/**"
+          source: "StudentsTimetable/Artifacts"
           target: "/home/Students-Timetable/"
       - name: Set up files in host
         uses: appleboy/ssh-action@v0.1.10
@@ -85,7 +85,7 @@ jobs:
         name: Download build artifact
         with:
           name: build
-          path: StudentsTimetable/Artifacts/**
+          path: StudentsTimetable/Artifacts
       - uses: actions/create-release@v1
         id: create_release
         env:
