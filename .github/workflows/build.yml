@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dotnet-version: ['6.0.x' ]
+        dotnet-version: [ '6.0.x' ]
 
     steps:
       - uses: actions/checkout@v3
@@ -49,8 +49,8 @@ jobs:
     
     runs-on: ubuntu-latest
     strategy:
-        matrix:
-          dotnet-version: ['6.0.x' ]
+      matrix:
+        dotnet-version: [ '6.0.x' ]
 
     steps:
       - name: Install SSH Key
@@ -77,13 +77,13 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
           script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && shutdown -r"
-      
+  
   publish:
     
     runs-on: ubuntu-latest
     strategy:
-        matrix:
-          dotnet-version: ['6.0.x' ]
+      matrix:
+        dotnet-version: [ '6.0.x' ]
     steps:
       - name: Publish artifacts to release
       - uses: actions/upload-release-asset@v1
