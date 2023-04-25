@@ -32,11 +32,10 @@ jobs:
       - name: Build
         run: dotnet publish StudentsTimetable -c release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true --output StudentsTimetable/Artifacts
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v2.2.2
+        uses: actions/upload-artifact@v3
         with:
           name: build
           path: StudentsTimetable/Artifacts/**
-          if-no-files-found: error
   upload:
     needs: build
     runs-on: ubuntu-latest
@@ -49,6 +48,7 @@ jobs:
         name: Download build artifact
         with:
           name: build
+          path: StudentsTimetable/Artifacts/**
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -85,6 +85,7 @@ jobs:
         name: Download build artifact
         with:
           name: build
+          path: StudentsTimetable/Artifacts/**
       - uses: actions/create-release@v1
         id: create_release
         env:
