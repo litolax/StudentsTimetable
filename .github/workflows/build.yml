@@ -46,7 +46,7 @@ jobs:
           path: StudentsTimetable/Artifacts/**
           if-no-files-found: error
   upload:
-    
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -79,7 +79,7 @@ jobs:
           script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && shutdown -r"
   
   publish:
-    
+    needs: upload
     runs-on: ubuntu-latest
     strategy:
       matrix:
