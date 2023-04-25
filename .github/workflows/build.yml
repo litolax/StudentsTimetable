@@ -52,13 +52,15 @@ jobs:
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
       - name: Adding Known Hosts
         run: ssh-keyscan -p 41061 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: SSH Remote Commands
-        uses: appleboy/ssh-action@v0.1.10
+      - uses: actions/checkout@v0.1.4
+      - name: Copy file via ssh password
+        uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
-          port: 41061
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
-          script: scp -r StudentsTimetable/Artifacts/* /home/Students-Timetable/
+          port: 41061
+          source: "StudentsTimetable/Artifacts/*"
+          target: "/home/Students-Timetable/"
       - name: Cleanup
         run: rm -rf ~/.ssh
