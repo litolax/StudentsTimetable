@@ -59,6 +59,6 @@ jobs:
           port: 41061
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
-          script: scp -P 41061 -r StudentsTimetable/Artifacts/* root@${{ secrets.SSH_HOST }}:/home/Students-Timetable/
+          script: scp -r StudentsTimetable/Artifacts/* /home/Students-Timetable/
       - name: Cleanup
         run: rm -rf ~/.ssh
