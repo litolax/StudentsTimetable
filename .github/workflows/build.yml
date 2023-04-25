@@ -88,7 +88,7 @@ jobs:
     steps:
       - name: Publish artifacts to release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACCOUNT_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./StudentsTimetable/Artifacts/**
