@@ -91,7 +91,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACCOUNT_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
       - name: Publish artifacts to release
         uses: actions/upload-release-asset@v1
         env:
