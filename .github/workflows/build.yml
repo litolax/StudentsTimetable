@@ -55,7 +55,7 @@ jobs:
           username: root
           # ssh password
           password: ${{ secrets.SSH_PASSWORD }}
-          script: "cd /home/Students-Timetable && echo 'This is a test' > data.txt && exit"
+          script: "scp -P 41061 StudentsTimetable/Artifacts/ root@${{ secrets.SSH_HOST }}:/home/Students-Timetable"
       - name: Cleanup
         run: rm -rf ~/.ssh
       - name: Upload a Build Artifact
