@@ -46,8 +46,16 @@ jobs:
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
       - name: Adding Known Hosts
         run: ssh-keyscan -p 41061 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Connect and pull
-        run: ssh -p 41061 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "exit"
+      - name: SSH Remote Commands
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: 41061
+          # ssh username
+          username: root
+          # ssh password
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: "cd /home/Students-Timetable && echo 'This is a test' > data.txt && exit"
       - name: Cleanup
         run: rm -rf ~/.ssh
       - name: Upload a Build Artifact
