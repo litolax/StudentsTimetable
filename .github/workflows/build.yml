@@ -47,7 +47,7 @@ jobs:
       - name: Adding Known Hosts
         run: ssh-keyscan -p 41061 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       - name: Connect and pull
-        run: ssh -p 41061 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.WORK_DIR }} && git checkout ${{ secrets.MAIN_BRANCH }} && git pull && exit"
+        run: ssh -p 41061 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "exit"
       - name: Cleanup
         run: rm -rf ~/.ssh
       - name: Upload a Build Artifact
