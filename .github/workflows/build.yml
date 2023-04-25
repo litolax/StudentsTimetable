@@ -1,4 +1,4 @@
-name: dotnet package
+name: Deploy to server
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - v*
 
 jobs:
-  build:
+  deploy:
 
     runs-on: ubuntu-latest
     strategy:
@@ -52,7 +52,7 @@ jobs:
           known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
       - name: Adding Known Hosts
         run: ssh-keyscan -p 41061 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Copy file via ssh password
+      - name: Copy artifacts
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -61,5 +61,13 @@ jobs:
           port: 41061
           source: "StudentsTimetable/Artifacts/**"
           target: "/home/Students-Timetable/"
+      - name: Set up files in host
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: 41061
+          username: root
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && shutdown -r"
       - name: Cleanup
         run: rm -rf ~/.ssh
