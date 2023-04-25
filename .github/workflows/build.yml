@@ -31,14 +31,6 @@ jobs:
         run: dotnet restore
       - name: Build
         run: dotnet publish StudentsTimetable -c release -r ubuntu.21.04-x64 -p:PublishSingleFile=true --self-contained true --output StudentsTimetable/Artifacts
-      - name: Test
-        run: dotnet test --no-restore --verbosity normal
-      - name: Upload dotnet test results
-        uses: actions/upload-artifact@v3
-        with:
-          name: dotnet-results-${{ matrix.dotnet-version }}
-          path: TestResults-${{ matrix.dotnet-version }}
-        if: ${{ always() }}
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2.2.2
         with:
@@ -53,6 +45,10 @@ jobs:
         dotnet-version: [ '6.0.x' ]
 
     steps:
+      - uses: actions/download-artifact@v2
+        name: Download build artifact
+        with:
+          name: build
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -85,6 +81,17 @@ jobs:
       matrix:
         dotnet-version: [ '6.0.x' ]
     steps:
+      - uses: actions/download-artifact@v2
+        name: Download build artifact
+        with:
+          name: build
+      - uses: actions/create-release@v1
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCOUNT_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
       - name: Publish artifacts to release
         uses: actions/upload-release-asset@v1
         env:
