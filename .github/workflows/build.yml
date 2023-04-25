@@ -39,6 +39,12 @@ jobs:
           name: dotnet-results-${{ matrix.dotnet-version }}
           path: TestResults-${{ matrix.dotnet-version }}
         if: ${{ always() }}
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v2.2.2
+        with:
+          name: build
+          path: StudentsTimetable/Artifacts/**
+          if-no-files-found: error
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -51,16 +57,8 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           port: 41061
-          # ssh username
           username: root
-          # ssh password
           password: ${{ secrets.SSH_PASSWORD }}
           script: scp -P 41061 -r StudentsTimetable/Artifacts/* root@${{ secrets.SSH_HOST }}:/home/Students-Timetable/
       - name: Cleanup
         run: rm -rf ~/.ssh
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v2.2.2
-        with:
-          name: build
-          path: StudentsTimetable/Artifacts/**
-          if-no-files-found: error
