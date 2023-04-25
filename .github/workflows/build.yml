@@ -93,13 +93,17 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
+      - name: Archive files
+        run: |
+          cd StudentsTimetable/Artifacts
+          zip -r build.zip *
       - name: Publish artifacts to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.ACCOUNT_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./StudentsTimetable/Artifacts/**
+          asset_path: StudentsTimetable/Artifacts/build.zip
           asset_name: build.zip
           asset_content_type: application/zip
       - name: Cleanup
