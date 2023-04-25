@@ -6,7 +6,7 @@ on:
       - v*
 
 jobs:
-  deploy:
+  build:
 
     runs-on: ubuntu-latest
     strategy:
@@ -45,6 +45,14 @@ jobs:
           name: build
           path: StudentsTimetable/Artifacts/**
           if-no-files-found: error
+  upload:
+    
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          dotnet-version: ['6.0.x' ]
+
+    steps:
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -69,5 +77,22 @@ jobs:
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
           script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && shutdown -r"
+      - uses: actions/upload-release-asset@v1
+      
+  publish:
+    
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          dotnet-version: ['6.0.x' ]
+    steps:
+      - name: Publish artifacts to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./StudentsTimetable/Artifacts/**
+          asset_name: build.zip
+          asset_content_type: application/zip
       - name: Cleanup
         run: rm -rf ~/.ssh
