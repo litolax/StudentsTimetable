@@ -87,7 +87,8 @@ namespace StudentsTimetable.Services
                 }
                 case "🎰Посмотреть расписание на день🎰":
                 {
-                    await this._parserService.SendDayTimetable(sender);
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id, "Данная функция временно недоступна"));
+                    //await this._parserService.SendDayTimetable(sender);
                     break;
                 }
                 case "🔪Посмотреть расписание на неделю🔪":
