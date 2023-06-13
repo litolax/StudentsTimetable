@@ -216,7 +216,7 @@ public class ParserService : IParserService
             GroupInfos = new List<GroupInfo>(groupInfos)
         });
         groupInfos.Clear();
-        await this.ValidateTimetableHashes(firstStart);
+        //await this.ValidateTimetableHashes(firstStart);
         this._dayParseStarted = false;
         Console.WriteLine("Завершено дневное расписание");
     }
