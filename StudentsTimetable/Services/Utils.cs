@@ -56,7 +56,7 @@ public static class Utils
         
         var options = new ChromeOptions
         {
-            PageLoadStrategy = PageLoadStrategy.Normal
+            PageLoadStrategy = PageLoadStrategy.Eager
         };
 
         options.AddArgument("--no-sandbox");
@@ -69,9 +69,11 @@ public static class Utils
         options.AddArgument("--disable-dev-shm-usage");
         options.AddArgument("--log-level=3");
         options.AddArgument("--output=/dev/null");
-
+        options.AddArgument("--force-device-scale-factor=1");
+        options.AddArgument("--disable-browser-side-navigation");
+        
         var driver = new ChromeDriver(service, options);
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 0, 30);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 1, 0);
 
         return (driver, Process.GetProcessById(service.ProcessId));
     }
