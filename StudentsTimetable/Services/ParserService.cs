@@ -211,7 +211,11 @@ public class ParserService : IParserService
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
         }
 
-        this._tempTimetable.Add(new Day()
+        // this._tempTimetable.Add(new Day()
+        // {
+        //     GroupInfos = new List<GroupInfo>(groupInfos)
+        // });
+        this._timetable.Add(new Day()
         {
             GroupInfos = new List<GroupInfo>(groupInfos)
         });
