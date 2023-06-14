@@ -56,21 +56,21 @@ public class ParserService : IParserService
         _botService = botService;
         _config = config;
 
-        // var parseDayTimer = new Timer(600_000)
-        // {
-        //     AutoReset = true, Enabled = true
-        // };
-        // parseDayTimer.Elapsed += async (sender, args) =>
-        // {
-        //     try
-        //     {
-        //         await NewDayTimetableCheck();
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine(e);
-        //     }
-        // };
+        var parseDayTimer = new Timer(600_000)
+        {
+            AutoReset = true, Enabled = true
+        };
+        parseDayTimer.Elapsed += async (sender, args) =>
+        {
+            try
+            {
+                await NewDayTimetableCheck();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        };
 
         var parseWeekTimer = new Timer(900_000)
         {
