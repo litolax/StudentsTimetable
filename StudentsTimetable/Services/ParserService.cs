@@ -35,9 +35,6 @@ public class ParserService : IParserService
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
 
-    private static bool _weekParseStarted = false;
-    private static bool _dayParseStarted = false;
-
     public List<string> Groups { get; set; } = new()
     { 
         "8", "41", "42", "43", "44", "45", "46", "48", "49", "50", "51",
@@ -56,31 +53,15 @@ public class ParserService : IParserService
         _botService = botService;
         _config = config;
 
-        var parseDayTimer = new Timer(600_000)
+        var parseTimer = new Timer(1_000_000)
         {
             AutoReset = true, Enabled = true
         };
-        parseDayTimer.Elapsed += async (sender, args) =>
+        parseTimer.Elapsed += async (sender, args) =>
         {
             try
             {
-                await NewDayTimetableCheck();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-        };
-
-        var parseWeekTimer = new Timer(900_000)
-        {
-            AutoReset = true, Enabled = true
-        };
-        parseWeekTimer.Elapsed += async (sender, args) =>
-        {
-            try
-            {
-                await NewWeekTimetableCheck();
+                await NewTimetableCheck();
             }
             catch (Exception e)
             {
@@ -91,26 +72,15 @@ public class ParserService : IParserService
 
     public async Task ParseDayTimetables(bool firstStart = false)
     {
-        lock (this)
-        {
-            if (_dayParseStarted) return;
-            _dayParseStarted = true;
-        }
-
         Console.WriteLine("Запущено дневное расписание");
 
-        var (driver, process) = Utils.CreateChromeDriver();
+        var driver = ChromeService.Driver;
         driver.Navigate().GoToUrl(DayUrl);
 
         var content = driver.FindElement(By.Id("wrapperTables"));
 
         if (content is null)
         {
-            _dayParseStarted = false;
-            driver.Close();
-            driver.Quit();
-            driver.Dispose();
-            process.Kill();
             return;
         }
 
@@ -177,11 +147,6 @@ public class ParserService : IParserService
             }
         }
 
-        driver.Close();
-        driver.Quit();
-        driver.Dispose();
-        process.Kill();
-
         foreach (var groupInfo in groupInfos)
         {
             int count = 0;
@@ -221,7 +186,6 @@ public class ParserService : IParserService
         });
         groupInfos.Clear();
         //await ValidateTimetableHashes(firstStart);
-        _dayParseStarted = false;
         Console.WriteLine("Завершено дневное расписание");
     }
 
@@ -413,12 +377,6 @@ public class ParserService : IParserService
 
     public async Task ParseWeekTimetables()
     {
-        lock (this)
-        {
-            if (_weekParseStarted) return;
-            _weekParseStarted = true;
-        }
-
         Console.WriteLine("Запущено недельное расписание");
 
         var web = new HtmlWeb();
@@ -430,7 +388,6 @@ public class ParserService : IParserService
         var students = doc.DocumentNode.SelectNodes("//h2");
         if (students is null)
         {
-            _weekParseStarted = false;
             return;
         }
 
@@ -438,7 +395,7 @@ public class ParserService : IParserService
         // var dateDbCollection = _mongoService.Database.GetCollection<Timetable>("WeekTimetables");
         // var dbTables = (await dateDbCollection.FindAsync(d => true)).ToList();
 
-        var (driver, process) = Utils.CreateChromeDriver();
+        var driver = ChromeService.Driver;
 
         foreach (var group in Groups)
         {
@@ -476,11 +433,7 @@ public class ParserService : IParserService
                 _botService.SendMessage(new SendMessageArgs(adminTelegramId, "Ошибка в группе: " + group));
             }
         }
-
-        driver.Close();
-        driver.Quit();
-        driver.Dispose();
-        process.Kill();
+        
 
         // if (!dbTables.Exists(table => table.Date.Trim() == newDate))
         // {
@@ -489,8 +442,7 @@ public class ParserService : IParserService
         //         Date = newDate
         //     });
         // }
-
-        _weekParseStarted = false;
+        
         Console.WriteLine("Завершено недельное расписание");
         //await SendNotificationsAboutWeekTimetable();
     }
@@ -545,58 +497,35 @@ public class ParserService : IParserService
         await Task.WhenAll(tasks);
     }
 
-    private async Task NewDayTimetableCheck()
+    private async Task NewTimetableCheck()
     {
-        lock (this)
-        {
-            if (_dayParseStarted) return;
-        }
-        
-        var (driver, process) = Utils.CreateChromeDriver();
-        driver.Navigate().GoToUrl(DayUrl);
+        bool parseDay = false, parseWeek = false;
+        var driver = ChromeService.Driver;
 
+        //Day
+        driver.Navigate().GoToUrl(DayUrl);
         var contentElement = driver.FindElement(By.Id("wrapperTables"));
         bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
-        
-        driver.Close();
-        driver.Quit();
-        driver.Dispose();
-        process.Kill();
 
-        if (emptyContent || LastDayHtmlContent == contentElement.Text) return;
 
-        try
+        if (!emptyContent && LastDayHtmlContent != contentElement.Text)
         {
-            await ParseDayTimetables();
+            parseDay = true;
         }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-        }
-    }
 
-    private async Task NewWeekTimetableCheck()
-    {
-        lock (this)
-        {
-            if (_weekParseStarted) return;
-        }
-        
-        var (driver, process) = Utils.CreateChromeDriver();
         driver.Navigate().GoToUrl(WeekUrl);
-        
+
         var content = driver.FindElement(By.ClassName("entry")).Text;
-        
-        driver.Close();
-        driver.Quit();
-        driver.Dispose();
-        process.Kill();
-        
-        if (content == default || LastWeekHtmlContent == content) return;
+
+        if (content != default && LastWeekHtmlContent != content)
+        {
+            parseWeek = true;
+        }
 
         try
         {
-            await ParseWeekTimetables();
+            if (parseDay) await this.ParseDayTimetables();
+            if (parseWeek) await this.ParseWeekTimetables();
         }
         catch (Exception e)
         {

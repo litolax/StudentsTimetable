@@ -23,6 +23,7 @@ namespace StudentsTimetable
                 .AddSingleton<ICommandsService, CommandsService>()
                 .AddSingleton<IInterfaceService, InterfaceService>()
                 .AddSingleton<IAccountService, AccountService>()
+                .AddSingleton<IChromeService, ChromeService>()
                 .AddSingleton(typeof(IConfig<>), typeof(Config<>))
                 .BuildServiceProvider(true);
 
