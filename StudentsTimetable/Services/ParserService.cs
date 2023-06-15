@@ -180,6 +180,7 @@ public class ParserService : IParserService
         // {
         //     GroupInfos = new List<GroupInfo>(groupInfos)
         // });
+        _timetable.Clear();
         _timetable.Add(new Day()
         {
             GroupInfos = new List<GroupInfo>(groupInfos)
