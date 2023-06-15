@@ -73,7 +73,7 @@ public static class Utils
         options.AddArgument("--disable-browser-side-navigation");
         
         var driver = new ChromeDriver(service, options);
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 1, 0);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 2, 30);
 
         return (driver, Process.GetProcessById(service.ProcessId));
     }
