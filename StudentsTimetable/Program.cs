@@ -28,6 +28,7 @@ namespace StudentsTimetable
                 .BuildServiceProvider(true);
 
             serviceProvider.GetService<ICommandsService>();
+            serviceProvider.GetService<IChromeService>();
             var parserService = serviceProvider.GetService<IParserService>()!;
 
             try
