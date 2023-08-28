@@ -26,12 +26,14 @@ public class ChromeService : IChromeService
         var options = new FirefoxOptions();
 
         options.AddArgument("--no-sandbox");
+        options.AddArgument("no-sandbox");
         options.AddArgument("--headless");
         options.AddArgument("--log-level=3");
         options.AddArgument("--force-device-scale-factor=1");
+        options.SetEnvironmentVariable("webdriver.gecko.driver", "./geckodriver");
         
-        var driver = new FirefoxDriver("./", options,TimeSpan.FromSeconds(120));
-        driver.Manage().Timeouts().PageLoad += TimeSpan.FromMinutes(3);
+        var driver = new FirefoxDriver("./", options,TimeSpan.FromMinutes(2));
+        driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
 
         return driver;
     }
