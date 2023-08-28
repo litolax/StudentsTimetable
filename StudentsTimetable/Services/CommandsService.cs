@@ -93,7 +93,7 @@ namespace StudentsTimetable.Services
                 }
                 case "🔪Посмотреть расписание на неделю🔪":
                 {
-                    await this._parserService.SendWeekTimetable(sender);
+                    await this._parserService.SendWeek(sender);
                     break;
                 }
                 case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":

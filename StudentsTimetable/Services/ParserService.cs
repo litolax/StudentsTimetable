@@ -19,7 +19,7 @@ public interface IParserService
     List<string> Groups { get; set; }
     Task ParseWeek();
     Task ParseDay();
-    Task SendWeekTimetable(User telegramUser);
+    Task SendWeek(User telegramUser);
     Task SendDayTimetable(User telegramUser);
     Task UpdateTimetableTick();
 }
@@ -281,7 +281,7 @@ public class ParserService : IParserService
         return Task.CompletedTask;
     }
 
-    public async Task SendWeekTimetable(User telegramUser)
+    public async Task SendWeek(User telegramUser)
     {
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
@@ -341,8 +341,8 @@ public class ParserService : IParserService
 
         try
         {
-            if (parseDay) await this.ParseDay();
             if (parseWeek) await this.ParseWeek();
+            if (parseDay) await this.ParseDay();
         }
         catch (Exception e)
         {
