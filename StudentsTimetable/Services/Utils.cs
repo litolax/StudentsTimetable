@@ -9,15 +9,6 @@ namespace StudentsTimetable.Services;
 
 public static class Utils
 {
-    public static ExcelPackage ByteArrayToObject(byte[] arrBytes)
-    {
-        using (var memStream = new MemoryStream(arrBytes))
-        {
-            var package = new ExcelPackage(memStream);
-            return package;
-        }
-    }
-
     public static string HtmlTagsFix(string input)
     {
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
@@ -28,7 +19,7 @@ public static class Utils
         var container = driver.FindElement(By.ClassName("main"));
         driver.ExecuteScript("arguments[0].style='width: 100%; border-top: none'", container);
 
-        driver.Manage().Window.Size = new Size(1920, container.Size.Height - 175);
+        driver.Manage().Window.Size = new Size(1920, container.Size.Height!);
 
         var header = driver.FindElement(By.Id("header"));
         driver.ExecuteScript("arguments[0].style='display: none'", header);
@@ -54,8 +45,8 @@ public static class Utils
 
         foreach (var lesson in groupInfo.Lessons)
         {
-            var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
-            var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+            var lessonName = HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+            var cabinet = HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
             var newlineIndexes = new List<int>();
             for (int i = 0; i < lessonName.Length; i++)
             {
