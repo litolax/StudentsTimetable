@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Firefox;
+using StudentsTimetable.Models;
 using Size = System.Drawing.Size;
 
 namespace StudentsTimetable.Services;
@@ -23,7 +23,7 @@ public static class Utils
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
     }
 
-    public static void ModifyUnnecessaryElementsOnWebsite(ref ChromeDriver driver)
+    public static void ModifyUnnecessaryElementsOnWebsite(ref FirefoxDriver driver)
     {
         var container = driver.FindElement(By.ClassName("main"));
         driver.ExecuteScript("arguments[0].style='width: 100%; border-top: none'", container);
@@ -45,36 +45,41 @@ public static class Utils
         var all = driver.FindElement(By.CssSelector("*"));
         driver.ExecuteScript("arguments[0].style='overflow-y: hidden; overflow-x: hidden'", all);
     }
-
-    public static (ChromeDriver chromeDriver, Process process) CreateChromeDriver()
+    
+    public static string CreateDayTimetableMessage(GroupInfo groupInfo)
     {
-        var service = ChromeDriverService.CreateDefaultService();
-        
-        service.EnableVerboseLogging = false;
-        service.SuppressInitialDiagnosticInformation = true;
-        service.HideCommandPromptWindow = true;
-        
-        var options = new ChromeOptions
+        string message = string.Empty;
+
+        message += $"Группа: *{groupInfo.Number}*\n\n";
+
+        foreach (var lesson in groupInfo.Lessons)
         {
-            PageLoadStrategy = PageLoadStrategy.Eager
-        };
+            var lessonName = Utils.HtmlTagsFix(lesson.Name).Replace('\n', ' ');
+            var cabinet = Utils.HtmlTagsFix(lesson.Cabinet).Replace('\n', ' ');
+            var newlineIndexes = new List<int>();
+            for (int i = 0; i < lessonName.Length; i++)
+            {
+                if (int.TryParse(lessonName[i].ToString(), out _) && i != 0)
+                {
+                    newlineIndexes.Add(i);
+                }
+            }
 
-        options.AddArgument("--no-sandbox");
-        options.AddArgument("--headless");
-        options.AddArgument("--disable-gpu");
-        options.AddArgument("--disable-crash-reporter");
-        options.AddArgument("--disable-extensions");
-        options.AddArgument("--disable-in-process-stack-traces");
-        options.AddArgument("--disable-logging");
-        options.AddArgument("--disable-dev-shm-usage");
-        options.AddArgument("--log-level=3");
-        options.AddArgument("--output=/dev/null");
-        options.AddArgument("--force-device-scale-factor=1");
-        options.AddArgument("--disable-browser-side-navigation");
-        
-        var driver = new ChromeDriver(service, options);
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 2, 30);
+            if (newlineIndexes.Count > 0)
+            {
+                foreach (var newlineIndex in newlineIndexes)
+                {
+                    lessonName = lessonName.Insert(newlineIndex, "\n");
+                }
+            }
 
-        return (driver, Process.GetProcessById(service.ProcessId));
+            message +=
+                $"*Пара: №{lesson.Number}*" +
+                $"\n{(lessonName.Length < 2 ? "Предмет: -" : $"{lessonName}")}" +
+                $"\n{(cabinet.Length < 2 ? "Каб: -" : $"Каб: {cabinet}")}" +
+                $"\n\n";
+        }
+
+        return message;
     }
 }

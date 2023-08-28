@@ -47,7 +47,7 @@ namespace StudentsTimetable.Services
             {
                 case "/start":
                 {
-                    if (await _accountService.GetUserById(sender.Id) is null) await this._accountService.CreateAccount(sender);
+                    if (await this._accountService.GetUserById(sender.Id) is null) await this._accountService.CreateAccount(sender);
                     
                     await this._interfaceService.OpenMainMenu(message);
                     this._botService.SendMessage(new SendMessageArgs(sender.Id,

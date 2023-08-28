@@ -86,7 +86,7 @@ namespace StudentsTimetable.Services
                 }
             }
 
-            var (result, messageText) = ValidationAllRegexNotification(message);
+            var (result, messageText) = this.ValidationAllRegexNotification(message);
             if (!result && message.Poll is null) return;
 
             var userCollection = this._mongoService.Database.GetCollection<User>("Users");

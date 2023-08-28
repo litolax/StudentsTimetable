@@ -30,16 +30,7 @@ namespace StudentsTimetable
             serviceProvider.GetService<ICommandsService>();
             serviceProvider.GetService<IChromeService>();
             var parserService = serviceProvider.GetService<IParserService>()!;
-
-            try
-            {
-                await parserService.ParseWeekTimetables();
-                await parserService.ParseDayTimetables(true);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
+            await parserService.UpdateTimetableTick();
 
             await Core.Start(new[]
             {

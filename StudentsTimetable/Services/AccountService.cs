@@ -2,7 +2,6 @@
 using MongoDB.Driver;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableTypes;
-using TelegramBot_Timetable_Core.Models;
 using TelegramBot_Timetable_Core.Services;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -64,7 +63,7 @@ namespace StudentsTimetable.Services
 
             if (correctGroupName == string.Empty)
             {
-                this._botService.SendMessage(new SendMessageArgs(telegramUser.Id, "Группа не найдена"));
+                await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id, "Группа не найдена"));
                 return false;
             }
 
@@ -75,7 +74,7 @@ namespace StudentsTimetable.Services
             var update = Builders<Models.User>.Update.Set(u => u.Group, user.Group);
             await userCollection.UpdateOneAsync(u => u.UserId == telegramUser.Id, update);
             
-            this._botService.SendMessage(new SendMessageArgs(telegramUser.Id, $"Вы успешно выбрали {correctGroupName} группу"));
+            await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id, $"Вы успешно выбрали {correctGroupName} группу"));
             return true;
         }
 
@@ -88,7 +87,7 @@ namespace StudentsTimetable.Services
             
             if (user.Group is null)
             {
-                this._botService.SendMessage(new SendMessageArgs(telegramUser.Id, $"Перед оформлением подписки на рассылку необходимо выбрать группу"));
+                await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id, $"Перед оформлением подписки на рассылку необходимо выбрать группу"));
                 return;
             }
 
@@ -121,7 +120,7 @@ namespace StudentsTimetable.Services
                 InputFieldPlaceholder = "Выберите действие"
             };
             
-            this._botService.SendMessage(new SendMessageArgs(telegramUser.Id, user.Notifications ? 
+            await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id, user.Notifications ? 
                 $"Вы успешно подписались на расписание группы {user.Group}" :
                 $"Вы успешно отменили подписку на расписание группы {user.Group}")
             {

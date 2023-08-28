@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using OpenQA.Selenium.Chrome;
+﻿using OpenQA.Selenium;
+using OpenQA.Selenium.Firefox;
 
 namespace StudentsTimetable.Services;
 
@@ -9,13 +9,41 @@ public interface IChromeService
 
 public class ChromeService : IChromeService
 {
-    public static ChromeDriver Driver { get; set; }
-    public static Process Process { get; set; }
+    public static FirefoxDriver Driver { get; set; }
     
     public ChromeService()
     {
-        (Driver, Process) = Utils.CreateChromeDriver();
+        Driver = this.Create();
     }
-    
-    
+
+    private FirefoxDriver Create()
+    {
+        var service = FirefoxDriverService.CreateDefaultService();
+        
+        service.SuppressInitialDiagnosticInformation = true;
+        service.HideCommandPromptWindow = true;
+
+        var options = new FirefoxOptions
+        {
+            PageLoadStrategy = PageLoadStrategy.Eager
+        };
+
+        options.AddArgument("--no-sandbox");
+        options.AddArgument("--headless");
+        options.AddArgument("--disable-gpu");
+        options.AddArgument("--disable-crash-reporter");
+        options.AddArgument("--disable-extensions");
+        options.AddArgument("--disable-in-process-stack-traces");
+        options.AddArgument("--disable-logging");
+        options.AddArgument("--disable-dev-shm-usage");
+        options.AddArgument("--log-level=3");
+        options.AddArgument("--output=/dev/null");
+        options.AddArgument("--force-device-scale-factor=1");
+        options.AddArgument("--disable-browser-side-navigation");
+        
+        var driver = new FirefoxDriver(service, options);
+        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 2, 30);
+
+        return driver;
+    }
 }
