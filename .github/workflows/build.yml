@@ -72,7 +72,7 @@ jobs:
           port: 41061
           username: root
           password: ${{ secrets.SSH_PASSWORD }}
-          script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && systemctl kill studentsservice"
+          script: "cd /home/Students-Timetable/StudentsTimetable/Artifacts && chmod +x StudentsTimetable && cd ./selenium-manager/linux && chmod +x selenium-manager && systemctl kill studentsservice"
   
   publish:
     needs: upload
