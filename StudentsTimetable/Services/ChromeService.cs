@@ -41,8 +41,8 @@ public class ChromeService : IChromeService
         options.AddArgument("--force-device-scale-factor=1");
         options.AddArgument("--disable-browser-side-navigation");
         
-        var driver = new FirefoxDriver(service, options);
-        driver.Manage().Timeouts().PageLoad = new TimeSpan(0, 2, 30);
+        var driver = new FirefoxDriver(service, options,TimeSpan.FromSeconds(180));
+        driver.Manage().Timeouts().PageLoad += TimeSpan.FromMinutes(3);
 
         return driver;
     }
