@@ -5,18 +5,12 @@ namespace StudentsTimetable.Services;
 
 public interface IChromeService
 {
+    (FirefoxDriverService service, FirefoxOptions options, TimeSpan delay) Create();
 }
 
 public class ChromeService : IChromeService
 {
-    public static FirefoxDriver Driver { get; set; }
-    
-    public ChromeService()
-    {
-        Driver = this.Create();
-    }
-
-    private FirefoxDriver Create()
+    public (FirefoxDriverService service, FirefoxOptions options, TimeSpan delay) Create()
     {
         var service = FirefoxDriverService.CreateDefaultService();
         
@@ -43,9 +37,6 @@ public class ChromeService : IChromeService
         options.AddArgument("--disable-browser-side-navigation");
         options.SetEnvironmentVariable("webdriver.gecko.driver", "./geckodriver");
         
-        var driver = new FirefoxDriver(service, options,TimeSpan.FromMinutes(2));
-        driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-
-        return driver;
+        return (service, options, TimeSpan.FromMinutes(2));
     }
 }

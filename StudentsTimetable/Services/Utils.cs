@@ -1,5 +1,4 @@
 ﻿using System.Text.RegularExpressions;
-using OfficeOpenXml;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using StudentsTimetable.Models;
@@ -14,7 +13,7 @@ public static class Utils
         return Regex.Replace(input, "<[^>]+>|&nbsp;", "").Trim();
     }
 
-    public static void ModifyUnnecessaryElementsOnWebsite(ref FirefoxDriver driver)
+    public static void ModifyUnnecessaryElementsOnWebsite(FirefoxDriver driver)
     {
         var container = driver.FindElement(By.ClassName("main"));
         driver.ExecuteScript("arguments[0].style='width: 100%; border-top: none'", container);
