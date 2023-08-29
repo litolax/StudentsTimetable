@@ -46,8 +46,8 @@ This telegram bot can notify people about new timetables.
    ```
 5. Install mongoDB
 * [mongoDB](https://www.mongodb.com/try/download/community)
-6. Install chromedriver (for week screenshots)
-* [chromeDriver](http://chromedriver.storage.googleapis.com/index.html)
+6. Install geckodriver (for week screenshots)
+* [geckodriver](https://github.com/mozilla/geckodriver/releases)
 
 ### Build
 #### Linux
