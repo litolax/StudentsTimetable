@@ -97,6 +97,7 @@ public class ParserService : IParserService
                 {
                     for (var i = 1; i < groupsAndLessons.Count; i += 2)
                     {
+                        //Console.WriteLine(groupsAndLessons[i - 1].Text.Split('-')[0].Trim()); //TODO DEBUG
                         if (groupsAndLessons[i - 1].Text.Split('-')[0].Trim() != group) continue;
                         var groupInfo = new GroupInfo();
                         var lessons = new List<Lesson>();
@@ -271,7 +272,7 @@ public class ParserService : IParserService
 
                     image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
 
-                    image.SaveAsync($"./cachedImages/{group.Replace('*', '_')}.png");
+                    image.SaveAsync($"./cachedImages/{group.Replace("*", "knor")}.png");
                     //driver.Close();
                 }
                 catch (Exception e)
@@ -303,7 +304,7 @@ public class ParserService : IParserService
             return;
         }
 
-        var image = await Image.LoadAsync($"./cachedImages/{user.Group.Replace('*', '_')}.png");
+        var image = await Image.LoadAsync($"./cachedImages/{user.Group.Replace("*", "knor")}.png");
 
         if (image is not { })
         {

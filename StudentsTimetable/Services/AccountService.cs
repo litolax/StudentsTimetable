@@ -53,15 +53,10 @@ namespace StudentsTimetable.Services
         {
             if (groupName is null) return false;
 
-            var correctGroupName = string.Empty;
-            foreach (var group in this._parserService.Groups)
-            {
-                if (!group.ToLower().Trim().Contains(groupName.ToLower().Trim())) continue;
-                correctGroupName = group.Trim();
-                break;
-            }
-
-            if (correctGroupName == string.Empty)
+            var correctGroupName = this._parserService.Groups.FirstOrDefault(group =>
+                group.ToLower().Trim().Contains(groupName.ToLower().Trim()));
+            
+            if (correctGroupName is not { })
             {
                 await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id, "Группа не найдена"));
                 return false;
