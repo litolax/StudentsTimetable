@@ -78,6 +78,7 @@ public class ParserService : IParserService
         var driver = ChromeService.Driver;
 
         driver.Navigate().GoToUrl(DayUrl);
+        Thread.Sleep(1500);
 
         var content = driver.FindElement(By.Id("wrapperTables"));
 
@@ -235,6 +236,7 @@ public class ParserService : IParserService
         var driver = ChromeService.Driver;
         
         driver.Navigate().GoToUrl(WeekUrl);
+        Thread.Sleep(1500);
         
         var content = driver.FindElements(By.XPath("//div/div/div/div/div/div")).FirstOrDefault();
         if (content != default)
@@ -248,6 +250,7 @@ public class ParserService : IParserService
             try
             {
                 driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
+                Thread.Sleep(1500);
 
                 Utils.ModifyUnnecessaryElementsOnWebsite(ref driver);
 
@@ -319,6 +322,8 @@ public class ParserService : IParserService
 
         //Day
         driver.Navigate().GoToUrl(DayUrl);
+        Thread.Sleep(1500);
+        
         var contentElement = driver.FindElement(By.Id("wrapperTables"));
         bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
 
@@ -326,9 +331,9 @@ public class ParserService : IParserService
         {
             parseDay = true;
         }
-
-        //driver.Close();
+        
         driver.Navigate().GoToUrl(WeekUrl);
+        Thread.Sleep(1500);
 
         var content = driver.FindElement(By.ClassName("entry")).Text;
 
