@@ -39,13 +39,11 @@ public class ParserService : IParserService
 
     public List<string> Groups { get; set; } = new()
     {
-        "8", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58",
+        "8", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59*",
         "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70",
         "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81",
-        "82", "83", "84"
+        "82", "83", "84", "160*", "162*", "163*", "164*", "165*", "166*"
     };
-
-    private static List<Day> TempTimetable { get; set; } = new();
     private static List<Day> Timetable { get; set; } = new();
 
     public ParserService(IMongoService mongoService, IBotService botService, IConfig<MainConfig> config,
@@ -83,14 +81,14 @@ public class ParserService : IParserService
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             driver.Navigate().GoToUrl(DayUrl);
-            Thread.Sleep(1500);
+            //Thread.Sleep(1500);
 
             var content = driver.FindElement(By.Id("wrapperTables"));
 
             if (content is null) return Task.CompletedTask;
 
             LastDayHtmlContent = content.Text;
-            TempTimetable.Clear();
+            
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
             foreach (var group in this.Groups)
@@ -244,7 +242,7 @@ public class ParserService : IParserService
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             driver.Navigate().GoToUrl(WeekUrl);
-            Thread.Sleep(1500);
+            //Thread.Sleep(1500);
 
             var content = driver.FindElements(By.XPath("//div/div/div/div/div/div")).FirstOrDefault();
             if (content != default)
@@ -258,7 +256,7 @@ public class ParserService : IParserService
                 try
                 {
                     driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
-                    Thread.Sleep(1500);
+                    //Thread.Sleep(1500);
 
                     Utils.ModifyUnnecessaryElementsOnWebsite(driver);
 
@@ -273,7 +271,7 @@ public class ParserService : IParserService
 
                     image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
 
-                    image.SaveAsync($"./cachedImages/{group}.png");
+                    image.SaveAsync($"./cachedImages/{group.Replace('*', '_')}.png");
                     //driver.Close();
                 }
                 catch (Exception e)
@@ -305,7 +303,7 @@ public class ParserService : IParserService
             return;
         }
 
-        var image = await Image.LoadAsync($"./cachedImages/{user.Group}.png");
+        var image = await Image.LoadAsync($"./cachedImages/{user.Group.Replace('*', '_')}.png");
 
         if (image is not { })
         {
@@ -322,6 +320,7 @@ public class ParserService : IParserService
 
     public async Task UpdateTimetableTick()
     {
+        Console.WriteLine("Start update tick");
         bool parseDay = false, parseWeek = false;
         var (service, options, delay) = this._chromeService.Create();
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
@@ -329,7 +328,7 @@ public class ParserService : IParserService
             //Day
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             driver.Navigate().GoToUrl(DayUrl);
-            Thread.Sleep(1500);
+            //Thread.Sleep(1500);
 
             var contentElement = driver.FindElement(By.Id("wrapperTables"));
             bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
@@ -340,7 +339,7 @@ public class ParserService : IParserService
             }
 
             driver.Navigate().GoToUrl(WeekUrl);
-            Thread.Sleep(1500);
+            //Thread.Sleep(1500);
 
             var content = driver.FindElement(By.ClassName("entry")).Text;
 
@@ -361,5 +360,7 @@ public class ParserService : IParserService
         {
             Console.WriteLine(e);
         }
+        
+        Console.WriteLine("End update tick");
     }
 }

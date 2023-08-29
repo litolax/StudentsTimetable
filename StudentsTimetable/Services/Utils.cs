@@ -18,8 +18,6 @@ public static class Utils
         var container = driver.FindElement(By.ClassName("main"));
         driver.ExecuteScript("arguments[0].style='width: 100%; border-top: none'", container);
 
-        driver.Manage().Window.Size = new Size(1920, container.Size.Height!);
-
         var header = driver.FindElement(By.Id("header"));
         driver.ExecuteScript("arguments[0].style='display: none'", header);
 
@@ -34,6 +32,8 @@ public static class Utils
 
         var all = driver.FindElement(By.CssSelector("*"));
         driver.ExecuteScript("arguments[0].style='overflow-y: hidden; overflow-x: hidden'", all);
+        
+        driver.Manage().Window.Size = new Size(1920, container.Size.Height - 30);
     }
     
     public static string CreateDayTimetableMessage(GroupInfo groupInfo)
