@@ -4,7 +4,7 @@
 <h3 align="center">Timetable students bot</h3>
 
   <p align="center">
-    Timetable telegram bot for MGKE students
+    Timetable telegram bot for MGKCT students
     <br>
     <a href="https://github.com/litolax/StudentsTimetable/issues">Report Bug</a>
     ·
