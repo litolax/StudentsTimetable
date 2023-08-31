@@ -2,7 +2,6 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
-using SixLabors.ImageSharp.Formats.Png;
 using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
@@ -81,7 +80,7 @@ public class ParserService : IParserService
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             driver.Navigate().GoToUrl(DayUrl);
-            //Thread.Sleep(1500);
+            Thread.Sleep(1500);
 
             var content = driver.FindElement(By.Id("wrapperTables"));
 
@@ -97,7 +96,6 @@ public class ParserService : IParserService
                 {
                     for (var i = 1; i < groupsAndLessons.Count; i += 2)
                     {
-                        //Console.WriteLine(groupsAndLessons[i - 1].Text.Split('-')[0].Trim()); //TODO DEBUG
                         if (groupsAndLessons[i - 1].Text.Split('-')[0].Trim() != group) continue;
                         var groupInfo = new GroupInfo();
                         var lessons = new List<Lesson>();
@@ -131,7 +129,7 @@ public class ParserService : IParserService
                             });
                         }
 
-                        groupInfo.Number = int.Parse(group);
+                        groupInfo.Number = int.Parse(group.Replace("*", ""));
                         groupInfo.Lessons = lessons;
                         groupInfos.Add(groupInfo);
                         break;
@@ -215,7 +213,7 @@ public class ParserService : IParserService
         {
             string message = day.Date + "\n";
 
-            foreach (var groupInfo in day.GroupInfos.Where(groupInfo => int.Parse(user.Group) == groupInfo.Number))
+            foreach (var groupInfo in day.GroupInfos.Where(groupInfo => int.Parse(user.Group.Replace("*", "")) == groupInfo.Number))
             {
                 if (groupInfo.Lessons.Count < 1)
                 {
