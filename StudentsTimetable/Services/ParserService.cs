@@ -6,7 +6,6 @@ using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
-using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Services;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
@@ -27,11 +26,11 @@ public class ParserService : IParserService
 {
     private readonly IMongoService _mongoService;
     private readonly IBotService _botService;
-    private readonly IConfig<MainConfig> _config;
     private readonly IChromeService _chromeService;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
+    private const int DriverTimeout = 2000;
 
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
@@ -43,15 +42,16 @@ public class ParserService : IParserService
         "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81",
         "82", "83", "84", "160*", "162*", "163*", "164*", "165*", "166*"
     };
+
     private static List<Day> Timetable { get; set; } = new();
 
-    public ParserService(IMongoService mongoService, IBotService botService, IConfig<MainConfig> config,
-        IChromeService chromeService)
+    public ParserService(IMongoService mongoService, IBotService botService, IChromeService chromeService)
     {
         this._mongoService = mongoService;
         this._botService = botService;
-        this._config = config;
         this._chromeService = chromeService;
+        
+        if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
 
         var parseTimer = new Timer(1_000_000)
         {
@@ -79,15 +79,14 @@ public class ParserService : IParserService
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+            
             driver.Navigate().GoToUrl(DayUrl);
-            Thread.Sleep(1500);
+            Thread.Sleep(DriverTimeout);
 
             var content = driver.FindElement(By.Id("wrapperTables"));
-
             if (content is null) return Task.CompletedTask;
 
-            LastDayHtmlContent = content.Text;
-            
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
             foreach (var group in this.Groups)
@@ -137,15 +136,8 @@ public class ParserService : IParserService
                 }
                 catch (Exception e)
                 {
-                    if (this._config.Entries.Administrators is not { } administrators) continue;
-                    var adminTelegramId = administrators.FirstOrDefault();
-                    if (adminTelegramId == default) continue;
-
-                    this._botService.SendMessage(new SendMessageArgs(adminTelegramId, e.Message));
-                    this._botService.SendMessage(new SendMessageArgs(adminTelegramId,
-                        "Ошибка дневного расписания в группе: " + group));
-
-                    //driver.Close();
+                    this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
+                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка дневного расписания в группе: " + group));
                 }
             }
         }
@@ -186,7 +178,7 @@ public class ParserService : IParserService
             GroupInfos = new List<GroupInfo>(groupInfos)
         });
         groupInfos.Clear();
-        //driver.Close();
+
         Console.WriteLine("End parse day");
         return Task.CompletedTask;
     }
@@ -213,7 +205,8 @@ public class ParserService : IParserService
         {
             string message = day.Date + "\n";
 
-            foreach (var groupInfo in day.GroupInfos.Where(groupInfo => int.Parse(user.Group.Replace("*", "")) == groupInfo.Number))
+            foreach (var groupInfo in day.GroupInfos.Where(groupInfo =>
+                         int.Parse(user.Group.Replace("*", "")) == groupInfo.Number))
             {
                 if (groupInfo.Lessons.Count < 1)
                 {
@@ -240,22 +233,17 @@ public class ParserService : IParserService
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+            
             driver.Navigate().GoToUrl(WeekUrl);
-            //Thread.Sleep(1500);
-
-            var content = driver.FindElements(By.XPath("//div/div/div/div/div/div")).FirstOrDefault();
-            if (content != default)
-            {
-                LastWeekHtmlContent = content.Text;
-                //driver.Close();
-            }
+            Thread.Sleep(DriverTimeout);
 
             foreach (var group in this.Groups)
             {
                 try
                 {
                     driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
-                    //Thread.Sleep(1500);
+                    Thread.Sleep(DriverTimeout - 1850);
 
                     Utils.ModifyUnnecessaryElementsOnWebsite(driver);
 
@@ -271,17 +259,11 @@ public class ParserService : IParserService
                     image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
 
                     image.SaveAsync($"./cachedImages/{group.Replace("*", "knor")}.png");
-                    //driver.Close();
                 }
                 catch (Exception e)
                 {
-                    if (this._config.Entries.Administrators is not { } administrators) continue;
-                    var adminTelegramId = administrators.FirstOrDefault();
-                    if (adminTelegramId == default) continue;
-
-                    this._botService.SendMessage(new SendMessageArgs(adminTelegramId, e.Message));
-                    this._botService.SendMessage(new SendMessageArgs(adminTelegramId, "Ошибка в группе: " + group));
-                    //driver.Close();
+                    this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
+                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка в группе: " + group));
                 }
             }
         }
@@ -320,46 +302,57 @@ public class ParserService : IParserService
     public async Task UpdateTimetableTick()
     {
         Console.WriteLine("Start update tick");
-        bool parseDay = false, parseWeek = false;
-        var (service, options, delay) = this._chromeService.Create();
-        using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
-        {
-            //Day
-            driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-            driver.Navigate().GoToUrl(DayUrl);
-            //Thread.Sleep(1500);
-
-            var contentElement = driver.FindElement(By.Id("wrapperTables"));
-            bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
-
-            if (!emptyContent && LastDayHtmlContent != contentElement.Text)
-            {
-                parseDay = true;
-            }
-
-            driver.Navigate().GoToUrl(WeekUrl);
-            //Thread.Sleep(1500);
-
-            var content = driver.FindElement(By.ClassName("entry")).Text;
-
-            if (content != default && LastWeekHtmlContent != content)
-            {
-                parseWeek = true;
-            }
-        }
-
-        //driver.Close();
-
         try
         {
-            if (parseWeek) await this.ParseWeek();
-            if (parseDay) await this.ParseDay();
+            bool parseDay = false, parseWeek = false;
+            var (service, options, delay) = this._chromeService.Create();
+            using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
+            {
+                //Day
+                driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
+                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+                
+                driver.Navigate().GoToUrl(DayUrl);
+                Thread.Sleep(DriverTimeout);
+
+                var contentElement = driver.FindElement(By.Id("wrapperTables")).Text;
+                bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
+
+                if (!emptyContent && LastDayHtmlContent != contentElement)
+                {
+                    parseDay = true;
+                    LastDayHtmlContent = contentElement;
+                }
+
+                driver.Navigate().GoToUrl(WeekUrl);
+                Thread.Sleep(DriverTimeout);
+
+                var content = driver.FindElement(By.ClassName("entry")).Text;
+
+                if (content != default && LastWeekHtmlContent != content)
+                {
+                    parseWeek = true;
+                    LastWeekHtmlContent = content;
+                }
+            }
+
+            if (parseWeek)
+            {
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse week"));
+                await this.ParseWeek();
+            }
+
+            if (parseDay)
+            {
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
+                await this.ParseDay();
+            }
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
         }
-        
+
         Console.WriteLine("End update tick");
     }
 }
