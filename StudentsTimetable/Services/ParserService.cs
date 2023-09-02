@@ -7,6 +7,7 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
+using File = System.IO.File;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -278,7 +279,7 @@ public class ParserService : IParserService
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
 
-        if (user.Group is null)
+        if (user.Group is null || !File.Exists($"./cachedImages/{user.Group.Replace("*", "knor")}.png"))
         {
             await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
             return;
