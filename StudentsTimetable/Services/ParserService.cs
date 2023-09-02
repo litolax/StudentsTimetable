@@ -2,6 +2,7 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
+using OpenQA.Selenium.Support.UI;
 using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
@@ -31,7 +32,7 @@ public class ParserService : IParserService
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
-    private const int DriverTimeout = 2000;
+    private const int DriverTimeout = 100;
 
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
@@ -80,12 +81,13 @@ public class ParserService : IParserService
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
             
             driver.Navigate().GoToUrl(DayUrl);
-            Thread.Sleep(DriverTimeout);
+            //Thread.Sleep(DriverTimeout);
 
             var content = driver.FindElement(By.Id("wrapperTables"));
+            wait.Until(d => content.Displayed);
             if (content is null) return Task.CompletedTask;
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
@@ -234,21 +236,22 @@ public class ParserService : IParserService
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
             
             driver.Navigate().GoToUrl(WeekUrl);
-            Thread.Sleep(DriverTimeout);
+            //Thread.Sleep(DriverTimeout);
 
             foreach (var group in this.Groups)
             {
                 try
                 {
                     driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
-                    Thread.Sleep(DriverTimeout - 1850);
+                    //Thread.Sleep(DriverTimeout - 1850);
 
                     Utils.ModifyUnnecessaryElementsOnWebsite(driver);
 
                     var element = driver.FindElement(By.TagName("h2"));
+                    wait.Until(d => element.Displayed);
                     if (element == default) continue;
 
                     var actions = new Actions(driver);
@@ -311,29 +314,31 @@ public class ParserService : IParserService
             {
                 //Day
                 driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(15);
+                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
                 
                 driver.Navigate().GoToUrl(DayUrl);
-                Thread.Sleep(DriverTimeout);
+                //Thread.Sleep(DriverTimeout);
 
-                var contentElement = driver.FindElement(By.Id("wrapperTables")).Text;
+                var contentElement = driver.FindElement(By.Id("wrapperTables"));
+                wait.Until(d => contentElement.Displayed);
                 bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
 
-                if (!emptyContent && LastDayHtmlContent != contentElement)
+                if (!emptyContent && LastDayHtmlContent != contentElement.Text)
                 {
                     parseDay = true;
-                    LastDayHtmlContent = contentElement;
+                    LastDayHtmlContent = contentElement.Text;
                 }
 
                 driver.Navigate().GoToUrl(WeekUrl);
-                Thread.Sleep(DriverTimeout);
+                //Thread.Sleep(DriverTimeout);
 
-                var content = driver.FindElement(By.ClassName("entry")).Text;
+                var content = driver.FindElement(By.ClassName("entry"));
+                wait.Until(d => content.Displayed);
 
-                if (content != default && LastWeekHtmlContent != content)
+                if (content != default && LastWeekHtmlContent != content.Text)
                 {
                     parseWeek = true;
-                    LastWeekHtmlContent = content;
+                    LastWeekHtmlContent = content.Text;
                 }
             }
 
