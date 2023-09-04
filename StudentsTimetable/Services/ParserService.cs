@@ -1,4 +1,6 @@
-﻿using MongoDB.Driver;
+﻿using System.Drawing;
+using System.Text.RegularExpressions;
+using MongoDB.Driver;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
@@ -9,6 +11,8 @@ using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
 using File = System.IO.File;
+using Image = SixLabors.ImageSharp.Image;
+using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
 
@@ -52,7 +56,7 @@ public class ParserService : IParserService
         this._mongoService = mongoService;
         this._botService = botService;
         this._chromeService = chromeService;
-        
+
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
 
         var parseTimer = new Timer(1_000_000)
@@ -82,7 +86,7 @@ public class ParserService : IParserService
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-            
+
             driver.Navigate().GoToUrl(DayUrl);
             //Thread.Sleep(DriverTimeout);
 
@@ -140,7 +144,8 @@ public class ParserService : IParserService
                 catch (Exception e)
                 {
                     this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
-                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка дневного расписания в группе: " + group));
+                    this._botService.SendAdminMessage(new SendMessageArgs(0,
+                        "Ошибка дневного расписания в группе: " + group));
                 }
             }
         }
@@ -236,38 +241,51 @@ public class ParserService : IParserService
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-            
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(120));
+
             driver.Navigate().GoToUrl(WeekUrl);
             //Thread.Sleep(DriverTimeout);
+            var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
+            wait.Until(d => element.Displayed);
+            Utils.ModifyUnnecessaryElementsOnWebsite(driver);
 
-            foreach (var group in this.Groups)
+            if (element == default) return Task.CompletedTask;
+            var h2 =
+                driver.FindElements(
+                    By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h2"));
+
+            var h3 =
+                driver.FindElements(
+                    By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
+            var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
+            Utils.HideGroupElements(driver, h3.ToList());
+            Utils.HideGroupElements(driver, h2.ToList());
+            Utils.HideGroupElements(driver, table.ToList());
+            for (var i = 0; i < h2.Count; i++)
             {
+                var groupH2 = h2[i];
+                var groupH3 = h3[i];
+                var groupTable = table[i];
+                var groupName = string.Empty;
+                var list = new List<IWebElement> { groupH2, groupH3, groupTable };
                 try
                 {
-                    driver.Navigate().GoToUrl($"{WeekUrl}?group={group}");
                     //Thread.Sleep(DriverTimeout - 1850);
-
-                    Utils.ModifyUnnecessaryElementsOnWebsite(driver);
-
-                    var element = driver.FindElement(By.TagName("h2"));
-                    wait.Until(d => element.Displayed);
-                    if (element == default) continue;
-
                     var actions = new Actions(driver);
-                    actions.MoveToElement(element).Perform();
-
+                    Utils.ShowGroupElements(driver, list);
+                    actions.MoveToElement(groupH2).Perform();
+                    groupName = this.Groups.First(g=> Utils.GetNumberFromGroupName(g) == Utils.GetNumberFromGroupName(groupH2.Text));
+                    driver.Manage().Window.Size = new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
                     var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-                    var image = Image.Load(screenshot.AsByteArray);
-
+                    using var image = Image.Load(screenshot.AsByteArray);
+                    Utils.HideGroupElements(driver, list);
                     image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
-
-                    image.SaveAsync($"./cachedImages/{group.Replace("*", "knor")}.png");
+                    image.SaveAsync($"./cachedImages/{groupName.Replace("*", "knor")}.png");
                 }
                 catch (Exception e)
                 {
                     this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
-                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка в группе: " + group));
+                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка в группе: " + groupName));
                 }
             }
         }
@@ -315,7 +333,7 @@ public class ParserService : IParserService
                 //Day
                 driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-                
+
                 driver.Navigate().GoToUrl(DayUrl);
                 //Thread.Sleep(DriverTimeout);
 
@@ -347,11 +365,11 @@ public class ParserService : IParserService
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse week"));
                 await this.ParseWeek();
             }
-
+            
             if (parseDay)
             {
-                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
-                await this.ParseDay();
+                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
+                 await this.ParseDay();
             }
         }
         catch (Exception e)
