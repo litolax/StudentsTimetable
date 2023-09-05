@@ -35,7 +35,7 @@ public static class Utils
         
         driver.Manage().Window.Size = new Size(1920, container.Size.Height - 30);
     }
-    
+
     public static string CreateDayTimetableMessage(GroupInfo groupInfo)
     {
         string message = string.Empty;
@@ -72,4 +72,23 @@ public static class Utils
 
         return message;
     }
+
+    public static void HideGroupElements(FirefoxDriver driver, List<IWebElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            driver.ExecuteScript("arguments[0].style='display: none;'", element);
+        }
+    }
+
+
+    public static void ShowGroupElements(FirefoxDriver driver, List<IWebElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            driver.ExecuteScript("arguments[0].style='display: block;'", element);
+        }
+    }
+
+    public static int GetNumberFromGroupName(string str) => int.Parse(Regex.Replace(str, "[^0-9]", ""));
 }
