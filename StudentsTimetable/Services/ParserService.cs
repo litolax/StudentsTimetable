@@ -316,7 +316,7 @@ public class ParserService : IParserService
                 driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
                 
-                driver.Navigate().GoToUrl(DayUrl);
+                //driver.Navigate().GoToUrl(DayUrl);
                 //Thread.Sleep(DriverTimeout);
 
                 // var contentElement = driver.FindElement(By.Id("wrapperTables"));
