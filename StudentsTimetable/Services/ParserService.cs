@@ -36,7 +36,7 @@ public class ParserService : IParserService
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
-    private const int DriverTimeout = 100;
+    private const int DriverTimeout = 200;
 
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
@@ -82,13 +82,14 @@ public class ParserService : IParserService
 
         var groupInfos = new List<GroupInfo>();
         var (service, options, delay) = this._chromeService.Create();
+        var group = string.Empty;
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
             driver.Navigate().GoToUrl(DayUrl);
-            //Thread.Sleep(DriverTimeout);
+            Thread.Sleep(2000);
 
             var content = driver.FindElement(By.Id("wrapperTables"));
             wait.Until(d => content.Displayed);
@@ -96,59 +97,58 @@ public class ParserService : IParserService
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
-            foreach (var group in this.Groups)
+            try
             {
-                try
+                for (var i = 1; i < groupsAndLessons.Count; i += 2)
                 {
-                    for (var i = 1; i < groupsAndLessons.Count; i += 2)
+                    var parsedGroupName = groupsAndLessons[i - 1].Text.Split('-')[0].Trim();
+                    group = this.Groups.FirstOrDefault(g => g == parsedGroupName); 
+                    if (group is null) continue;
+                    var groupInfo = new GroupInfo();
+                    var lessons = new List<Lesson>();
+
+                    var lessonsElements = groupsAndLessons[i].FindElements(By.XPath(".//table/tbody/tr")).ToList();
+
+                    if (lessonsElements.Count < 1)
                     {
-                        if (groupsAndLessons[i - 1].Text.Split('-')[0].Trim() != group) continue;
-                        var groupInfo = new GroupInfo();
-                        var lessons = new List<Lesson>();
-
-                        var lessonsElements = groupsAndLessons[i].FindElements(By.XPath(".//table/tbody/tr")).ToList();
-
-                        if (lessonsElements.Count < 1)
-                        {
-                            groupInfo.Lessons = lessons;
-                            groupInfo.Number = int.Parse(group);
-                            groupInfos.Add(groupInfo);
-                            continue;
-                        }
-
-                        var lessonNumbers = lessonsElements[0].FindElements(By.XPath(".//th")).ToList();
-                        var lessonNames = lessonsElements[1].FindElements(By.XPath(".//td")).ToList();
-                        var lessonCabinets = lessonsElements[2].FindElements(By.XPath(".//td")).ToList();
-
-                        for (int j = 0; j < lessonNumbers.Count; j++)
-                        {
-                            string cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
-                                ? "-"
-                                : lessonCabinets[j].Text;
-
-                            lessons.Add(new Lesson()
-                            {
-                                Number = int.Parse(lessonNumbers[j].Text.Replace("№", "")),
-                                Cabinet = cabinet,
-                                Group = group,
-                                Name = lessonNames[j].Text
-                            });
-                        }
-
-                        groupInfo.Number = int.Parse(group.Replace("*", ""));
                         groupInfo.Lessons = lessons;
+                        groupInfo.Number = int.Parse(group);
                         groupInfos.Add(groupInfo);
-                        break;
+                        continue;
                     }
-                }
-                catch (Exception e)
-                {
-                    this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
-                    this._botService.SendAdminMessage(new SendMessageArgs(0,
-                        "Ошибка дневного расписания в группе: " + group));
+
+                    var lessonNumbers = lessonsElements[0].FindElements(By.XPath(".//th")).ToList();
+                    var lessonNames = lessonsElements[1].FindElements(By.XPath(".//td")).ToList();
+                    var lessonCabinets = lessonsElements[2].FindElements(By.XPath(".//td")).ToList();
+
+                    for (int j = 0; j < lessonNumbers.Count; j++)
+                    {
+                        string cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
+                            ? "-"
+                            : lessonCabinets[j].Text;
+
+                        lessons.Add(new Lesson()
+                        {
+                            Number = int.Parse(lessonNumbers[j].Text.Replace("№", "")),
+                            Cabinet = cabinet,
+                            Group = group,
+                            Name = lessonNames[j].Text
+                        });
+                    }
+
+                    groupInfo.Number = int.Parse(group.Replace("*", ""));
+                    groupInfo.Lessons = lessons;
+                    groupInfos.Add(groupInfo);
                 }
             }
+            catch (Exception e)
+            {
+                this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
+                this._botService.SendAdminMessage(new SendMessageArgs(0,
+                    "Ошибка дневного расписания в группе: " + group));
+            }
         }
+
 
         foreach (var groupInfo in groupInfos)
         {
@@ -274,8 +274,10 @@ public class ParserService : IParserService
                     var actions = new Actions(driver);
                     Utils.ShowGroupElements(driver, list);
                     actions.MoveToElement(groupH2).Perform();
-                    groupName = this.Groups.First(g=> Utils.GetNumberFromGroupName(g) == Utils.GetNumberFromGroupName(groupH2.Text));
-                    driver.Manage().Window.Size = new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
+                    groupName = this.Groups.First(g =>
+                        Utils.GetNumberFromGroupName(g) == Utils.GetNumberFromGroupName(groupH2.Text));
+                    driver.Manage().Window.Size =
+                        new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
                     var screenshot = (driver as ITakesScreenshot).GetScreenshot();
                     using var image = Image.Load(screenshot.AsByteArray);
                     Utils.HideGroupElements(driver, list);
@@ -335,7 +337,7 @@ public class ParserService : IParserService
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
                 driver.Navigate().GoToUrl(DayUrl);
-                //Thread.Sleep(DriverTimeout);
+                Thread.Sleep(DriverTimeout);
 
                 var contentElement = driver.FindElement(By.Id("wrapperTables"));
                 wait.Until(d => contentElement.Displayed);
@@ -348,11 +350,11 @@ public class ParserService : IParserService
                 }
 
                 driver.Navigate().GoToUrl(WeekUrl);
-                //Thread.Sleep(DriverTimeout);
-
+                Thread.Sleep(DriverTimeout);
+                
                 var content = driver.FindElement(By.ClassName("entry"));
                 wait.Until(d => content.Displayed);
-
+                
                 if (content != default && LastWeekHtmlContent != content.Text)
                 {
                     parseWeek = true;
@@ -365,11 +367,11 @@ public class ParserService : IParserService
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse week"));
                 await this.ParseWeek();
             }
-            
+
             if (parseDay)
             {
-                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
-                 await this.ParseDay();
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
+                await this.ParseDay();
             }
         }
         catch (Exception e)
