@@ -316,18 +316,18 @@ public class ParserService : IParserService
                 driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
                 
-                driver.Navigate().GoToUrl(DayUrl);
+                //driver.Navigate().GoToUrl(DayUrl);
                 //Thread.Sleep(DriverTimeout);
 
-                var contentElement = driver.FindElement(By.Id("wrapperTables"));
-                wait.Until(d => contentElement.Displayed);
-                bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
-
-                if (!emptyContent && LastDayHtmlContent != contentElement.Text)
-                {
-                    parseDay = true;
-                    LastDayHtmlContent = contentElement.Text;
-                }
+                // var contentElement = driver.FindElement(By.Id("wrapperTables"));
+                // wait.Until(d => contentElement.Displayed);
+                // bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
+                //
+                // if (!emptyContent && LastDayHtmlContent != contentElement.Text)
+                // {
+                //     parseDay = true;
+                //     LastDayHtmlContent = contentElement.Text;
+                // }
 
                 driver.Navigate().GoToUrl(WeekUrl);
                 //Thread.Sleep(DriverTimeout);
@@ -348,11 +348,11 @@ public class ParserService : IParserService
                 await this.ParseWeek();
             }
 
-            if (parseDay)
-            {
-                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
-                await this.ParseDay();
-            }
+            // if (parseDay)
+            // {
+            //     await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
+            //     await this.ParseDay();
+            // }
         }
         catch (Exception e)
         {
