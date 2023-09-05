@@ -258,16 +258,14 @@ public class ParserService : IParserService
                 driver.FindElements(
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
-            Utils.HideGroupElements(driver, h3.ToList());
-            Utils.HideGroupElements(driver, h2.ToList());
-            Utils.HideGroupElements(driver, table.ToList());
+            Utils.HideGroupElements(driver, h3);
+            Utils.HideGroupElements(driver, h2);
+            Utils.HideGroupElements(driver, table);
             for (var i = 0; i < h2.Count; i++)
             {
                 var groupH2 = h2[i];
-                var groupH3 = h3[i];
-                var groupTable = table[i];
                 var groupName = string.Empty;
-                var list = new List<IWebElement> { groupH2, groupH3, groupTable };
+                var list = new List<IWebElement> { groupH2, h3[i], table[i] };
                 try
                 {
                     //Thread.Sleep(DriverTimeout - 1850);
@@ -280,7 +278,6 @@ public class ParserService : IParserService
                         new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
                     var screenshot = (driver as ITakesScreenshot).GetScreenshot();
                     using var image = Image.Load(screenshot.AsByteArray);
-                    Utils.HideGroupElements(driver, list);
                     image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
                     image.SaveAsync($"./cachedImages/{groupName.Replace("*", "knor")}.png");
                 }
@@ -288,6 +285,10 @@ public class ParserService : IParserService
                 {
                     this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
                     this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка в группе: " + groupName));
+                }
+                finally
+                {
+                    Utils.HideGroupElements(driver, list);
                 }
             }
         }
@@ -366,12 +367,14 @@ public class ParserService : IParserService
             {
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse week"));
                 await this.ParseWeek();
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Finish parse week"));
             }
 
             if (parseDay)
             {
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
                 await this.ParseDay();
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Finish parse day"));
             }
         }
         catch (Exception e)
