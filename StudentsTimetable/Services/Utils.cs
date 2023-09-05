@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using StudentsTimetable.Models;
@@ -33,6 +34,8 @@ public static class Utils
         var all = driver.FindElement(By.CssSelector("*"));
         driver.ExecuteScript("arguments[0].style='overflow-y: hidden; overflow-x: hidden'", all);
         
+        
+        driver.ExecuteScript("arguments[0].style='display : none'", driver.FindElement(By.TagName("h1")));
         driver.Manage().Window.Size = new Size(1920, container.Size.Height - 30);
     }
 
@@ -73,7 +76,7 @@ public static class Utils
         return message;
     }
 
-    public static void HideGroupElements(FirefoxDriver driver, List<IWebElement> elements)
+    public static void HideGroupElements(FirefoxDriver driver, IEnumerable<IWebElement> elements)
     {
         foreach (var element in elements)
         {
@@ -82,7 +85,7 @@ public static class Utils
     }
 
 
-    public static void ShowGroupElements(FirefoxDriver driver, List<IWebElement> elements)
+    public static void ShowGroupElements(FirefoxDriver driver, IEnumerable<IWebElement> elements)
     {
         foreach (var element in elements)
         {
