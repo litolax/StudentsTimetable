@@ -7,17 +7,21 @@ public class Lesson
     public string Group { get; set; }
     public string Name { get; set; }
 
+    public override bool Equals(object? obj)
+    {
+        if (obj == null || GetType() != obj.GetType() || obj is not Lesson other)
+        {
+            return false;
+        }
+
+        return Number == other.Number &&
+               Cabinet == other.Cabinet &&
+               Group == other.Group &&
+               Name == other.Name;
+    }
+
     public override int GetHashCode()
     {
-        unchecked
-        {
-            int hash = 17;
-            
-            hash = hash * 31 + this.Number.GetHashCode();
-            hash = hash * 31 + this.Cabinet.GetHashCode();
-            hash = hash * 31 + this.Name.GetHashCode();
-
-            return hash;
-        }
+        return HashCode.Combine(Number, Cabinet, Group, Name);
     }
 }

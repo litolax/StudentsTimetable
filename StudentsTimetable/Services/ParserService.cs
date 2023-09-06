@@ -10,6 +10,7 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
+using Exception = System.Exception;
 using File = System.IO.File;
 using Image = SixLabors.ImageSharp.Image;
 using Size = System.Drawing.Size;
@@ -177,6 +178,9 @@ public class ParserService : IParserService
             }
 
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
+            var groupInfoFromTimetable = Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g=>g.Number == groupInfo.Number);
+            if(groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
+            this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
         }
 
 
