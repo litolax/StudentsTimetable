@@ -92,6 +92,4 @@ public static class Utils
             driver.ExecuteScript("arguments[0].style='display: block;'", element);
         }
     }
-
-    public static int GetNumberFromGroupName(string str) => int.Parse(Regex.Replace(str, "[^0-9]", ""));
 }

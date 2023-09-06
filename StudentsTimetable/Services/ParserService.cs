@@ -272,8 +272,7 @@ public class ParserService : IParserService
                     var actions = new Actions(driver);
                     Utils.ShowGroupElements(driver, list);
                     actions.MoveToElement(groupH2).Perform();
-                    groupName = this.Groups.First(g =>
-                        Utils.GetNumberFromGroupName(g) == Utils.GetNumberFromGroupName(groupH2.Text));
+                    groupName = this.Groups.First(g => g == groupH2.Text.Split('-')[1].Trim());
                     driver.Manage().Window.Size =
                         new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
                     var screenshot = (driver as ITakesScreenshot).GetScreenshot();
@@ -367,14 +366,14 @@ public class ParserService : IParserService
             {
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse week"));
                 await this.ParseWeek();
-                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Finish parse week"));
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "End parse week"));
             }
 
             if (parseDay)
             {
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Start parse day"));
                 await this.ParseDay();
-                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "Finish parse day"));
+                await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "End parse day"));
             }
         }
         catch (Exception e)
