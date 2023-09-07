@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
@@ -10,9 +9,7 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
-using Exception = System.Exception;
 using File = System.IO.File;
-using Image = SixLabors.ImageSharp.Image;
 using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
 using User = Telegram.BotAPI.AvailableTypes.User;
@@ -77,7 +74,7 @@ public class ParserService : IParserService
         };
     }
 
-    public Task ParseDay()
+    public async Task ParseDay()
     {
         Console.WriteLine("Start parse day");
 
@@ -94,7 +91,7 @@ public class ParserService : IParserService
 
             var content = driver.FindElement(By.Id("wrapperTables"));
             wait.Until(d => content.Displayed);
-            if (content is null) return Task.CompletedTask;
+            if (content is null) return;
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
 
@@ -103,7 +100,7 @@ public class ParserService : IParserService
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
                 {
                     var parsedGroupName = groupsAndLessons[i - 1].Text.Split('-')[0].Trim();
-                    group = this.Groups.FirstOrDefault(g => g == parsedGroupName); 
+                    group = this.Groups.FirstOrDefault(g => g == parsedGroupName);
                     if (group is null) continue;
                     var groupInfo = new GroupInfo();
                     var lessons = new List<Lesson>();
@@ -150,7 +147,7 @@ public class ParserService : IParserService
             }
         }
 
-
+        var notificationUserList = new List<Models.User>();
         foreach (var groupInfo in groupInfos)
         {
             int count = 0;
@@ -178,9 +175,13 @@ public class ParserService : IParserService
             }
 
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
-            var groupInfoFromTimetable = Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g=>g.Number == groupInfo.Number);
-            if(groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
+            var groupInfoFromTimetable =
+                Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g => g.Number == groupInfo.Number);
+            if (groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
+            notificationUserList.AddRange((await this._mongoService.Database.GetCollection<Models.User>("Users")
+                .FindAsync(u =>
+                    int.Parse(Regex.Replace(u.Group, "[^0-9]", "")) == groupInfo.Number && u.Notifications)).ToList());
         }
 
 
@@ -192,49 +193,22 @@ public class ParserService : IParserService
         groupInfos.Clear();
 
         Console.WriteLine("End parse day");
-        return Task.CompletedTask;
+        if(notificationUserList.Count == 0) return;
+        _ = Task.Run(() =>
+        {
+            foreach (var user in notificationUserList)
+            {
+                _ = SendDayTimetable(user);
+            }
+            this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"{notificationUserList.Count} notifications sent"));
+        });
     }
 
     public async Task SendDayTimetable(User telegramUser)
     {
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
-        if (user is null) return;
-
-        if (user.Group is null)
-        {
-            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
-            return;
-        }
-
-        if (Timetable.Count < 1)
-        {
-            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
-            return;
-        }
-
-        foreach (var day in Timetable)
-        {
-            string message = day.Date + "\n";
-
-            foreach (var groupInfo in day.GroupInfos.Where(groupInfo =>
-                         int.Parse(user.Group.Replace("*", "")) == groupInfo.Number))
-            {
-                if (groupInfo.Lessons.Count < 1)
-                {
-                    message = $"У {groupInfo.Number} группы нет пар";
-                    continue;
-                }
-
-                message = Utils.CreateDayTimetableMessage(groupInfo);
-            }
-
-            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
-                message.Trim().Length <= 1 ? "У вашей группы нет пар" : message)
-            {
-                ParseMode = ParseMode.Markdown
-            });
-        }
+        await SendDayTimetable(user);
     }
 
     public Task ParseWeek()
@@ -346,7 +320,7 @@ public class ParserService : IParserService
                 var contentElement = driver.FindElement(By.Id("wrapperTables"));
                 wait.Until(d => contentElement.Displayed);
                 bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
-                
+
                 if (!emptyContent && LastDayHtmlContent != contentElement.Text)
                 {
                     parseDay = true;
@@ -355,10 +329,10 @@ public class ParserService : IParserService
 
                 driver.Navigate().GoToUrl(WeekUrl);
                 Thread.Sleep(DriverTimeout);
-                
+
                 var content = driver.FindElement(By.ClassName("entry"));
                 wait.Until(d => content.Displayed);
-                
+
                 if (content != default && LastWeekHtmlContent != content.Text)
                 {
                     parseWeek = true;
@@ -386,5 +360,45 @@ public class ParserService : IParserService
         }
 
         Console.WriteLine("End update tick");
+    }
+
+    private async Task SendDayTimetable(Models.User user)
+    {
+        if (user is null) return;
+
+        if (user.Group is null)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
+            return;
+        }
+
+        if (Timetable.Count < 1)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, $"У {user.Group} группы нет пар"));
+            return;
+        }
+
+        foreach (var day in Timetable)
+        {
+            string message = day.Date + "\n";
+
+            foreach (var groupInfo in day.GroupInfos.Where(groupInfo =>
+                         int.Parse(user.Group.Replace("*", "")) == groupInfo.Number))
+            {
+                if (groupInfo.Lessons.Count < 1)
+                {
+                    message = $"У {groupInfo.Number} группы нет пар";
+                    continue;
+                }
+
+                message = Utils.CreateDayTimetableMessage(groupInfo);
+            }
+
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
+                message.Trim().Length <= 1 ? "У вашей группы нет пар" : message)
+            {
+                ParseMode = ParseMode.Markdown
+            });
+        }
     }
 }
