@@ -32,6 +32,8 @@ public class ParseService : IParseService
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
 
+    private const int DriverTimeout = 2000;
+
     public List<string> Groups { get; set; } = new()
     {
         "8", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59*",
@@ -76,13 +78,12 @@ public class ParseService : IParseService
         var groupInfos = new List<GroupInfo>();
         var (service, options, delay) = this._chromeService.Create();
         var group = string.Empty;
-        using (var driver = new FirefoxDriver(service, options, delay))
+        using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-
             driver.Navigate().GoToUrl(DayUrl);
-
+            Thread.Sleep(DriverTimeout);
             var content = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
             wait.Until(d => content.Displayed);
             if (content is null) return;
@@ -282,7 +283,7 @@ public class ParseService : IParseService
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
                 driver.Navigate().GoToUrl(DayUrl);
-
+                Thread.Sleep(DriverTimeout);
                 var contentElement = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
                 wait.Until(d => contentElement.Displayed);
                 bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
@@ -294,7 +295,7 @@ public class ParseService : IParseService
                 }
 
                 driver.Navigate().GoToUrl(WeekUrl);
-
+                Thread.Sleep(DriverTimeout);
                 var content = driver.FindElement(By.ClassName("entry"));
                 wait.Until(d => content.Displayed);
 
