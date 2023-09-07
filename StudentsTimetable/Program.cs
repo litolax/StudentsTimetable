@@ -19,7 +19,7 @@ namespace StudentsTimetable
             var serviceProvider = new ServiceCollection()
                 .AddSingleton<IMongoService, MongoService>()
                 .AddSingleton<IBotService, BotService>()
-                .AddSingleton<IParserService, ParserService>()
+                .AddSingleton<IParseService, ParseService>()
                 .AddSingleton<ICommandsService, CommandsService>()
                 .AddSingleton<IInterfaceService, InterfaceService>()
                 .AddSingleton<IAccountService, AccountService>()
@@ -29,7 +29,7 @@ namespace StudentsTimetable
 
             serviceProvider.GetService<ICommandsService>();
             serviceProvider.GetService<IChromeService>();
-            var parserService = serviceProvider.GetService<IParserService>()!;
+            var parserService = serviceProvider.GetService<IParseService>()!;
 
             try
             {

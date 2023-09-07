@@ -18,13 +18,13 @@ namespace StudentsTimetable.Services
     public class AccountService : IAccountService
     {
         private readonly IMongoService _mongoService;
-        private readonly IParserService _parserService;
+        private readonly IParseService _parseService;
         private readonly IBotService _botService;
 
-        public AccountService(IMongoService mongoService, IParserService parserService, IBotService botService)
+        public AccountService(IMongoService mongoService, IParseService parseService, IBotService botService)
         {
             this._mongoService = mongoService;
-            this._parserService = parserService;
+            this._parseService = parseService;
             this._botService = botService;
         }
 
@@ -53,7 +53,7 @@ namespace StudentsTimetable.Services
         {
             if (groupName is null) return false;
 
-            var correctGroupName = this._parserService.Groups.FirstOrDefault(group =>
+            var correctGroupName = this._parseService.Groups.FirstOrDefault(group =>
                 group.ToLower().Trim().Contains(groupName.ToLower().Trim()));
             
             if (correctGroupName is not { })
