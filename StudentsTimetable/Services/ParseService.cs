@@ -29,6 +29,8 @@ public class ParseService : IParseService
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
+    private const int DriverTimeout = 2000;
+
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
 
@@ -82,6 +84,7 @@ public class ParseService : IParseService
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
             driver.Navigate().GoToUrl(DayUrl);
+            Thread.Sleep(DriverTimeout);
 
             var content = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
             wait.Until(d => content.Displayed);
@@ -282,6 +285,7 @@ public class ParseService : IParseService
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
                 driver.Navigate().GoToUrl(DayUrl);
+                Thread.Sleep(DriverTimeout);
 
                 var contentElement = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
                 wait.Until(d => contentElement.Displayed);
@@ -294,6 +298,7 @@ public class ParseService : IParseService
                 }
 
                 driver.Navigate().GoToUrl(WeekUrl);
+                Thread.Sleep(DriverTimeout);
 
                 var content = driver.FindElement(By.ClassName("entry"));
                 wait.Until(d => content.Displayed);
