@@ -1,5 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using StudentsTimetable.Models;
