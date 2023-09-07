@@ -24,7 +24,7 @@ public class ParseService : IParseService
     private readonly IMongoService _mongoService;
     private readonly IBotService _botService;
     private readonly IChromeService _chromeService;
-    private readonly IInterfaceService _interfaceService;
+    private readonly IDistributionService _distributionService;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
@@ -43,12 +43,12 @@ public class ParseService : IParseService
     public static List<Day> Timetable { get; set; } = new();
 
     public ParseService(IMongoService mongoService, IBotService botService, IChromeService chromeService,
-        IInterfaceService interfaceService)
+        IDistributionService distributionService)
     {
         this._mongoService = mongoService;
         this._botService = botService;
         this._chromeService = chromeService;
-        this._interfaceService = interfaceService;
+        this._distributionService = distributionService;
 
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
 
@@ -199,7 +199,7 @@ public class ParseService : IParseService
         {
             foreach (var user in notificationUserList)
             {
-                _ = this._interfaceService.SendDayTimetable(user);
+                _ = this._distributionService.SendDayTimetable(user);
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,

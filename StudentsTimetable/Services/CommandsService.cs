@@ -16,9 +16,10 @@ namespace StudentsTimetable.Services
         private readonly IAccountService _accountService;
         private readonly IMongoService _mongoService;
         private readonly IBotService _botService;
+        private readonly IDistributionService _distributionService;
 
         public CommandsService(IInterfaceService interfaceService, IAccountService accountService,
-            IMongoService mongoService, IBotService botService)
+            IMongoService mongoService, IBotService botService, IDistributionService distributionService)
         {
             Core.OnMessageReceive += this.OnMessageReceive;
 
@@ -26,6 +27,7 @@ namespace StudentsTimetable.Services
             this._accountService = accountService;
             this._mongoService = mongoService;
             this._botService = botService;
+            this._distributionService = distributionService;
         }
 
         private async void OnMessageReceive(Message message)
@@ -87,12 +89,12 @@ namespace StudentsTimetable.Services
                 case "🎰Посмотреть расписание на день🎰":
                 {
                     // this._botService.SendMessage(new SendMessageArgs(sender.Id, "Данная функция временно недоступна"));
-                    await this._interfaceService.SendDayTimetable(sender);
+                    await this._distributionService.SendDayTimetable(sender);
                     break;
                 }
                 case "🔪Посмотреть расписание на неделю🔪":
                 {
-                    await this._interfaceService.SendWeek(sender);
+                    await this._distributionService.SendWeek(sender);
                     break;
                 }
                 case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":
