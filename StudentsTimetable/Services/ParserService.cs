@@ -1,6 +1,5 @@
 ﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
-using OfficeOpenXml.FormulaParsing.Excel.Functions.DateTime;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
@@ -10,7 +9,6 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
-using Day = StudentsTimetable.Models.Day;
 using File = System.IO.File;
 using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
@@ -36,7 +34,6 @@ public class ParserService : IParserService
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
-    private const int DriverTimeout = 200;
 
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
@@ -89,9 +86,8 @@ public class ParserService : IParserService
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
             driver.Navigate().GoToUrl(DayUrl);
-            Thread.Sleep(2000);
 
-            var content = driver.FindElement(By.Id("wrapperTables"));
+            var content = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
             wait.Until(d => content.Displayed);
             if (content is null) return;
 
@@ -183,7 +179,8 @@ public class ParserService : IParserService
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
             notificationUserList.AddRange((await this._mongoService.Database.GetCollection<Models.User>("Users")
                 .FindAsync(u =>
-                    int.Parse(Regex.Replace(u.Group, "[^0-9]", "")) == groupInfo.Number && u.Notifications)).ToList());
+                    u.Group != null && int.Parse(Regex.Replace(u.Group, "[^0-9]", "")) == groupInfo.Number &&
+                    u.Notifications)).ToList());
         }
 
 
@@ -195,14 +192,18 @@ public class ParserService : IParserService
         groupInfos.Clear();
 
         Console.WriteLine("End parse day");
-        if(notificationUserList.Count == 0) return;
+        
+        if (notificationUserList.Count == 0) return;
+        
         _ = Task.Run(() =>
         {
             foreach (var user in notificationUserList)
             {
-                _ = SendDayTimetable(user);
+                _ = this.SendDayTimetable(user);
             }
-            this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"{notificationUserList.Count} notifications sent"));
+
+            this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                $"{notificationUserList.Count} notifications sent"));
         });
     }
 
@@ -210,7 +211,7 @@ public class ParserService : IParserService
     {
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
-        await SendDayTimetable(user);
+        await this.SendDayTimetable(user);
     }
 
     public Task ParseWeek()
@@ -224,7 +225,6 @@ public class ParserService : IParserService
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(120));
 
             driver.Navigate().GoToUrl(WeekUrl);
-            //Thread.Sleep(DriverTimeout);
             var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
             wait.Until(d => element.Displayed);
             Utils.ModifyUnnecessaryElementsOnWebsite(driver);
@@ -248,7 +248,6 @@ public class ParserService : IParserService
                 var list = new List<IWebElement> { groupH2, h3[i], table[i] };
                 try
                 {
-                    //Thread.Sleep(DriverTimeout - 1850);
                     var actions = new Actions(driver);
                     Utils.ShowGroupElements(driver, list);
                     actions.MoveToElement(groupH2).Perform();
@@ -317,7 +316,6 @@ public class ParserService : IParserService
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
                 driver.Navigate().GoToUrl(DayUrl);
-                Thread.Sleep(2500);
 
                 var contentElement = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
                 wait.Until(d => contentElement.Displayed);
@@ -330,7 +328,6 @@ public class ParserService : IParserService
                 }
 
                 driver.Navigate().GoToUrl(WeekUrl);
-                Thread.Sleep(DriverTimeout);
 
                 var content = driver.FindElement(By.ClassName("entry"));
                 wait.Until(d => content.Displayed);
@@ -364,7 +361,7 @@ public class ParserService : IParserService
         Console.WriteLine("End update tick");
     }
 
-    private async Task SendDayTimetable(Models.User user)
+    private async Task SendDayTimetable(Models.User? user)
     {
         if (user is null) return;
 
