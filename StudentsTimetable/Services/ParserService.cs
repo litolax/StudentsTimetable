@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
+using OfficeOpenXml.FormulaParsing.Excel.Functions.DateTime;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
@@ -9,6 +10,7 @@ using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core.Services;
+using Day = StudentsTimetable.Models.Day;
 using File = System.IO.File;
 using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
@@ -315,9 +317,9 @@ public class ParserService : IParserService
                 var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
 
                 driver.Navigate().GoToUrl(DayUrl);
-                Thread.Sleep(DriverTimeout);
+                Thread.Sleep(2500);
 
-                var contentElement = driver.FindElement(By.Id("wrapperTables"));
+                var contentElement = driver.FindElement(By.XPath("//*[@id=\"wrapperTables\"]"));
                 wait.Until(d => contentElement.Displayed);
                 bool emptyContent = driver.FindElements(By.XPath(".//div")).ToList().Count < 5;
 
