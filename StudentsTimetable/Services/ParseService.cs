@@ -78,6 +78,7 @@ public class ParseService : IParseService
         var groupInfos = new List<GroupInfo>();
         var (service, options, delay) = this._chromeService.Create();
         var group = string.Empty;
+        var day = string.Empty;
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
@@ -89,7 +90,7 @@ public class ParseService : IParseService
             if (content is null) return;
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
-
+            if (groupsAndLessons.Count > 0) day = groupsAndLessons[0].Text.Split('-')[1].Trim();
             try
             {
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
@@ -188,6 +189,7 @@ public class ParseService : IParseService
         Timetable.Clear();
         Timetable.Add(new Day
         {
+            Date = day,
             GroupInfos = new List<GroupInfo>(groupInfos)
         });
         groupInfos.Clear();
