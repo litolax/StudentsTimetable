@@ -24,12 +24,12 @@ namespace StudentsTimetable
                 .AddSingleton<ICommandsService, CommandsService>()
                 .AddSingleton<IInterfaceService, InterfaceService>()
                 .AddSingleton<IAccountService, AccountService>()
-                .AddSingleton<IChromeService, ChromeService>()
+                .AddSingleton<IFirefoxService, FirefoxService>()
                 .AddSingleton(typeof(IConfig<>), typeof(Config<>))
                 .BuildServiceProvider(true);
 
             serviceProvider.GetService<ICommandsService>();
-            serviceProvider.GetService<IChromeService>();
+            serviceProvider.GetService<IFirefoxService>();
             var parserService = serviceProvider.GetService<IParseService>()!;
 
             try

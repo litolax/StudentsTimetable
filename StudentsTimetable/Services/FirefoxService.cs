@@ -3,12 +3,12 @@ using OpenQA.Selenium.Firefox;
 
 namespace StudentsTimetable.Services;
 
-public interface IChromeService
+public interface IFirefoxService
 {
     (FirefoxDriverService service, FirefoxOptions options, TimeSpan delay) Create();
 }
 
-public class ChromeService : IChromeService
+public class FirefoxService : IFirefoxService
 {
     public (FirefoxDriverService service, FirefoxOptions options, TimeSpan delay) Create()
     {

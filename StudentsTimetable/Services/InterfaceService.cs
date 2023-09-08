@@ -98,10 +98,7 @@ namespace StudentsTimetable.Services
 
             if (message.MediaGroupId is not null)
             {
-                foreach (var p in this._photos[message.MediaGroupId])
-                {
-                    mediaPhotos.Add(new InputMediaPhoto(p.FileId));
-                }
+                mediaPhotos.AddRange(this._photos[message.MediaGroupId].Select(p => new InputMediaPhoto(p.FileId)));
             }
 
 

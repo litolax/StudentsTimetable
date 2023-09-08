@@ -23,7 +23,7 @@ public class ParseService : IParseService
 {
     private readonly IMongoService _mongoService;
     private readonly IBotService _botService;
-    private readonly IChromeService _chromeService;
+    private readonly IFirefoxService _chromeService;
     private readonly IDistributionService _distributionService;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
@@ -44,7 +44,7 @@ public class ParseService : IParseService
 
     public static List<Day> Timetable { get; set; } = new();
 
-    public ParseService(IMongoService mongoService, IBotService botService, IChromeService chromeService,
+    public ParseService(IMongoService mongoService, IBotService botService, IFirefoxService chromeService,
         IDistributionService distributionService)
     {
         this._mongoService = mongoService;
@@ -117,7 +117,7 @@ public class ParseService : IParseService
 
                     for (int j = 0; j < lessonNumbers.Count; j++)
                     {
-                        string cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
+                        var cabinet = lessonCabinets.Count < lessonNumbers.Count && lessonCabinets.Count <= j
                             ? "-"
                             : lessonCabinets[j].Text;
 
