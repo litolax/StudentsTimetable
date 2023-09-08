@@ -176,13 +176,29 @@ public class ParseService : IParseService
 
             if (groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
 
-            _ = this._botService.SendAdminMessageAsync(
-                new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
+            try
+            {
+                _ = this._botService.SendAdminMessageAsync(
+                    new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
 
-            notificationUserList.AddRange((await this._mongoService.Database.GetCollection<User>("Users")
-                .FindAsync(u =>
-                    u.Group != null && int.Parse(Regex.Replace(u.Group, "[^0-9]", "")) == groupInfo.Number &&
-                    u.Notifications)).ToList());
+                var userList = (await this._mongoService.Database.GetCollection<User>("Users")
+                        .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
+                    {
+                        if (u?.Group != null && int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                        {
+                            return userGroupNumber == groupInfo.Number;
+                        }
+
+                        return false;
+                    })
+                    .ToList();
+
+                notificationUserList.AddRange(userList);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
 
