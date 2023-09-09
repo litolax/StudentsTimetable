@@ -154,6 +154,7 @@ public class ParseService : IParseService
                 if (lesson.Name.Length < 1) count++;
                 else break;
             }
+
             groupInfo.Lessons.RemoveRange(0, count);
             groupInfo.Lessons.Reverse();
 
@@ -199,8 +200,10 @@ public class ParseService : IParseService
                 Console.WriteLine(e);
             }
         }
-        
-        _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"There's been a schedule change with the groups: {string.Join(',', groupUpdatedList)}"));
+
+        if (groupUpdatedList.Count != 0)
+            _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                $"There's been a schedule change with the groups: {string.Join(',', groupUpdatedList)}"));
         Timetable.Clear();
         Timetable.Add(new Day
         {
@@ -217,7 +220,7 @@ public class ParseService : IParseService
         {
             foreach (var user in notificationUserList)
             {
-                _ = this._distributionService.SendDayTimetable(user) ;
+                _ = this._distributionService.SendDayTimetable(user);
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
