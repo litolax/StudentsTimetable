@@ -23,7 +23,7 @@ public class ParseService : IParseService
 {
     private readonly IMongoService _mongoService;
     private readonly IBotService _botService;
-    private readonly IFirefoxService _chromeService;
+    private readonly IFirefoxService _firefoxService;
     private readonly IDistributionService _distributionService;
 
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
@@ -44,12 +44,12 @@ public class ParseService : IParseService
 
     public static List<Day> Timetable { get; set; } = new();
 
-    public ParseService(IMongoService mongoService, IBotService botService, IFirefoxService chromeService,
+    public ParseService(IMongoService mongoService, IBotService botService, IFirefoxService firefoxService,
         IDistributionService distributionService)
     {
         this._mongoService = mongoService;
         this._botService = botService;
-        this._chromeService = chromeService;
+        this._firefoxService = firefoxService;
         this._distributionService = distributionService;
 
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
@@ -76,7 +76,7 @@ public class ParseService : IParseService
         Console.WriteLine("Start parse day");
 
         var groupInfos = new List<GroupInfo>();
-        var (service, options, delay) = this._chromeService.Create();
+        var (service, options, delay) = this._firefoxService.Create();
         var group = string.Empty;
         var day = string.Empty;
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
@@ -144,6 +144,7 @@ public class ParseService : IParseService
         }
 
         var notificationUserList = new List<User>();
+        var groupUpdatedList = new List<int>();
         foreach (var groupInfo in groupInfos)
         {
             int count = 0;
@@ -153,7 +154,6 @@ public class ParseService : IParseService
                 if (lesson.Name.Length < 1) count++;
                 else break;
             }
-
             groupInfo.Lessons.RemoveRange(0, count);
             groupInfo.Lessons.Reverse();
 
@@ -176,15 +176,14 @@ public class ParseService : IParseService
 
             if (groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
 
+            groupUpdatedList.Add(groupInfo.Number);
             try
             {
-                _ = this._botService.SendAdminMessageAsync(
-                    new SendMessageArgs(0, $"Расписание у группы {groupInfo.Number}"));
-
                 var userList = (await this._mongoService.Database.GetCollection<User>("Users")
                         .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
                     {
-                        if (u?.Group != null && int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                        if (u?.Group != null &&
+                            int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
                         {
                             return userGroupNumber == groupInfo.Number;
                         }
@@ -200,8 +199,8 @@ public class ParseService : IParseService
                 Console.WriteLine(e);
             }
         }
-
-
+        
+        _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"There's been a schedule change with the groups:: {string.Join(',', groupUpdatedList)}"));
         Timetable.Clear();
         Timetable.Add(new Day
         {
@@ -216,9 +215,10 @@ public class ParseService : IParseService
 
         _ = Task.Run(() =>
         {
+            var tasks = new List<Task>();
             foreach (var user in notificationUserList)
             {
-                _ = this._distributionService.SendDayTimetable(user);
+                _ = this._distributionService.SendDayTimetable(user) ;
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
@@ -230,7 +230,7 @@ public class ParseService : IParseService
     {
         Console.WriteLine("Start parse week");
 
-        var (service, options, delay) = this._chromeService.Create();
+        var (service, options, delay) = this._firefoxService.Create();
         using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
         {
             driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
@@ -293,7 +293,7 @@ public class ParseService : IParseService
         try
         {
             bool parseDay = false, parseWeek = false;
-            var (service, options, delay) = this._chromeService.Create();
+            var (service, options, delay) = this._firefoxService.Create();
             using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
             {
                 //Day
