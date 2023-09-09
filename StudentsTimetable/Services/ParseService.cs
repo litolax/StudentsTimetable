@@ -200,7 +200,7 @@ public class ParseService : IParseService
             }
         }
         
-        _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"There's been a schedule change with the groups:: {string.Join(',', groupUpdatedList)}"));
+        _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0, $"There's been a schedule change with the groups: {string.Join(',', groupUpdatedList)}"));
         Timetable.Clear();
         Timetable.Add(new Day
         {
@@ -215,7 +215,6 @@ public class ParseService : IParseService
 
         _ = Task.Run(() =>
         {
-            var tasks = new List<Task>();
             foreach (var user in notificationUserList)
             {
                 _ = this._distributionService.SendDayTimetable(user) ;
