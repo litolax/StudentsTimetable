@@ -4,8 +4,10 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
+using StudentsTimetable.Config;
 using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
+using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Services;
 using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
@@ -14,7 +16,7 @@ namespace StudentsTimetable.Services;
 
 public interface IParseService
 {
-    List<string> Groups { get; set; }
+    string[] Groups { get; init; }
     static List<Day> Timetable { get; set; }
     Task UpdateTimetableTick();
 }
@@ -34,31 +36,25 @@ public class ParseService : IParseService
 
     private const int DriverTimeout = 2000;
 
-    public List<string> Groups { get; set; } = new()
-    {
-        "8", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59*",
-        "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70",
-        "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81",
-        "82", "83", "84", "160*", "162*", "163*", "164*", "165*", "166*"
-    };
+    public string[] Groups { get; init; } 
 
     public static List<Day> Timetable { get; set; } = new();
 
     public ParseService(IMongoService mongoService, IBotService botService, IFirefoxService firefoxService,
-        IDistributionService distributionService)
+        IDistributionService distributionService, IConfig<GroupsConfig> groups)
     {
         this._mongoService = mongoService;
         this._botService = botService;
         this._firefoxService = firefoxService;
         this._distributionService = distributionService;
-
+        this.Groups = groups.Entries.Groups;
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
 
         var parseTimer = new Timer(1_000_000)
         {
             AutoReset = true, Enabled = true
         };
-        parseTimer.Elapsed += async (sender, args) =>
+        parseTimer.Elapsed += async (_, _) =>
         {
             try
             {
@@ -192,7 +188,6 @@ public class ParseService : IParseService
                         return false;
                     })
                     .ToList();
-
                 notificationUserList.AddRange(userList);
             }
             catch (Exception e)
@@ -223,8 +218,7 @@ public class ParseService : IParseService
                 _ = this._distributionService.SendDayTimetable(user);
             }
 
-            this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
-                $"{notificationUserList.Count} notifications sent"));
+            this._botService.SendAdminMessageAsync(new SendMessageArgs(0,$"{notificationUserList.Count} notifications sent"));
         });
     }
 
