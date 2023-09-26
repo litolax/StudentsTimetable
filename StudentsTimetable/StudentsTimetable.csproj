@@ -15,7 +15,7 @@
       <PackageReference Include="MongoDB.Bson" Version="2.21.0" />
       <PackageReference Include="MongoDB.Driver" Version="2.21.0" />
       <PackageReference Include="Selenium.Support" Version="4.13.1" />
-      <PackageReference Include="Selenium.WebDriver" Version="4.13.0" />
+      <PackageReference Include="Selenium.WebDriver" Version="4.13.1" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
       <PackageReference Include="Telegram.BotAPI" Version="6.9.0" />
     </ItemGroup>
