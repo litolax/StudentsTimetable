@@ -36,7 +36,7 @@ public class ParseService : IParseService
 
     private const int DriverTimeout = 2000;
 
-    public string[] Groups { get; init; } 
+    public string[] Groups { get; init; }
 
     public static List<Day> Timetable { get; set; } = new();
 
@@ -133,8 +133,8 @@ public class ParseService : IParseService
             }
             catch (Exception e)
             {
-                this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
-                this._botService.SendAdminMessage(new SendMessageArgs(0,
+                _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0, e.Message));
+                _ = this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
                     "Ошибка дневного расписания в группе: " + group));
             }
         }
@@ -154,7 +154,19 @@ public class ParseService : IParseService
             groupInfo.Lessons.RemoveRange(0, count);
             groupInfo.Lessons.Reverse();
 
-            if (groupInfo.Lessons.Count < 1) continue;
+            if (groupInfo.Lessons.Count < 1)
+            {
+                notificationUserList.AddRange(
+                    (await this._mongoService.Database.GetCollection<User>("Users")
+                        .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
+                    {
+                        if (u?.Group != null &&
+                            int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                            return userGroupNumber == groupInfo.Number;
+                        return false;
+                    }).ToList());
+                continue;
+            }
 
             for (int i = 0; i < groupInfo.Lessons.First().Number - 1; i++)
             {
@@ -176,19 +188,15 @@ public class ParseService : IParseService
             groupUpdatedList.Add(groupInfo.Number);
             try
             {
-                var userList = (await this._mongoService.Database.GetCollection<User>("Users")
+                notificationUserList.AddRange(
+                    (await this._mongoService.Database.GetCollection<User>("Users")
                         .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
                     {
                         if (u?.Group != null &&
                             int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
-                        {
                             return userGroupNumber == groupInfo.Number;
-                        }
-
                         return false;
-                    })
-                    .ToList();
-                notificationUserList.AddRange(userList);
+                    }).ToList());
             }
             catch (Exception e)
             {
@@ -218,7 +226,8 @@ public class ParseService : IParseService
                 _ = this._distributionService.SendDayTimetable(user);
             }
 
-            this._botService.SendAdminMessageAsync(new SendMessageArgs(0,$"{notificationUserList.Count} notifications sent"));
+            this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                $"{notificationUserList.Count} notifications sent"));
         });
     }
 
