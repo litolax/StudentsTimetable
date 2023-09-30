@@ -154,7 +154,10 @@ public class ParseService : IParseService
             groupInfo.Lessons.RemoveRange(0, count);
             groupInfo.Lessons.Reverse();
 
-            if (groupInfo.Lessons.Count < 1)
+            var groupInfoFromTimetable =
+                Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g => g.Number == groupInfo.Number);
+            if (groupInfo.Lessons.Count < 1 && groupInfoFromTimetable?.Lessons is not null &&
+                groupInfoFromTimetable.Lessons.Count > 0)
             {
                 notificationUserList.AddRange(
                     (await this._mongoService.Database.GetCollection<User>("Users")
@@ -180,8 +183,6 @@ public class ParseService : IParseService
             }
 
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
-            var groupInfoFromTimetable =
-                Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g => g.Number == groupInfo.Number);
 
             if (groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
 
