@@ -156,18 +156,18 @@ public class ParseService : IParseService
 
             var groupInfoFromTimetable =
                 Timetable.LastOrDefault()?.GroupInfos.FirstOrDefault(g => g.Number == groupInfo.Number);
-            if (groupInfo.Lessons.Count < 1 && groupInfoFromTimetable?.Lessons is not null &&
-                groupInfoFromTimetable.Lessons.Count > 0)
+            if (groupInfo.Lessons.Count < 1)
             {
-                notificationUserList.AddRange(
-                    (await this._mongoService.Database.GetCollection<User>("Users")
-                        .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
-                    {
-                        if (u?.Group != null &&
-                            int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
-                            return userGroupNumber == groupInfo.Number;
-                        return false;
-                    }).ToList());
+                if (groupInfoFromTimetable?.Lessons is not null && groupInfoFromTimetable.Lessons.Count > 0)
+                    notificationUserList.AddRange(
+                        (await this._mongoService.Database.GetCollection<User>("Users")
+                            .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
+                        {
+                            if (u?.Group != null &&
+                                int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                                return userGroupNumber == groupInfo.Number;
+                            return false;
+                        }).ToList());
                 continue;
             }
 
