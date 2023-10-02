@@ -67,7 +67,7 @@ public class ParseService : IParseService
         };
     }
 
-    public async Task ParseDay()
+    private async Task ParseDay()
     {
         Console.WriteLine("Start parse day");
 
@@ -232,7 +232,7 @@ public class ParseService : IParseService
         });
     }
 
-    public Task ParseWeek()
+    private Task ParseWeek()
     {
         Console.WriteLine("Start parse week");
 
