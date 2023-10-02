@@ -27,7 +27,7 @@ public class ParseService : IParseService
     private readonly IBotService _botService;
     private readonly IFirefoxService _firefoxService;
     private readonly IDistributionService _distributionService;
-
+    private string _weekInterval;
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
@@ -67,7 +67,7 @@ public class ParseService : IParseService
         };
     }
 
-    public async Task ParseDay()
+    private async Task ParseDay()
     {
         Console.WriteLine("Start parse day");
 
@@ -232,7 +232,7 @@ public class ParseService : IParseService
         });
     }
 
-    public Task ParseWeek()
+    private Task ParseWeek()
     {
         Console.WriteLine("Start parse week");
 
@@ -255,6 +255,8 @@ public class ParseService : IParseService
             var h3 =
                 driver.FindElements(
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
+            var weekInterval = h3[0].Text;
+            if (_weekInterval is null) _weekInterval = weekInterval;
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
             Utils.HideGroupElements(driver, h3);
             Utils.HideGroupElements(driver, h2);
