@@ -28,6 +28,7 @@ public class ParseService : IParseService
     private readonly IFirefoxService _firefoxService;
     private readonly IDistributionService _distributionService;
     private string _weekInterval;
+    private IWebElement _trWithHeaders;
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
@@ -86,7 +87,11 @@ public class ParseService : IParseService
             if (content is null) return;
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
-            if (groupsAndLessons.Count > 0) day = groupsAndLessons[0].Text.Split('-')[1].Trim();
+            if (groupsAndLessons.Count > 0)
+            {
+                day = groupsAndLessons[0].Text.Split('-')[1].Trim();
+                day = driver.FindElement(By.XPath($"//*[contains(text(), '{day}')]")).Text;
+            }
             try
             {
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
@@ -246,7 +251,7 @@ public class ParseService : IParseService
             var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
             wait.Until(d => element.Displayed);
             Utils.ModifyUnnecessaryElementsOnWebsite(driver);
-
+            _trWithHeaders = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"));
             if (element == default) return Task.CompletedTask;
             var h2 =
                 driver.FindElements(
@@ -256,7 +261,10 @@ public class ParseService : IParseService
                 driver.FindElements(
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
             var weekInterval = h3[0].Text;
-            if (_weekInterval is null) _weekInterval = weekInterval;
+            if (_weekInterval is null && _weekInterval !=weekInterval)
+            {
+                _weekInterval = weekInterval;
+            }
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
             Utils.HideGroupElements(driver, h3);
             Utils.HideGroupElements(driver, h2);
