@@ -28,7 +28,7 @@ public class ParseService : IParseService
     private readonly IFirefoxService _firefoxService;
     private readonly IDistributionService _distributionService;
     private string _weekInterval;
-    private IWebElement _trWithHeaders;
+    private List<string> _thHeaders;
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
@@ -50,7 +50,6 @@ public class ParseService : IParseService
         this._distributionService = distributionService;
         this.Groups = groups.Entries.Groups;
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
-
         var parseTimer = new Timer(1_000_000)
         {
             AutoReset = true, Enabled = true
@@ -90,8 +89,12 @@ public class ParseService : IParseService
             if (groupsAndLessons.Count > 0)
             {
                 day = groupsAndLessons[0].Text.Split('-')[1].Trim();
-                day = driver.FindElement(By.XPath($"//*[contains(text(), '{day}')]")).Text;
+                var tempDay = _thHeaders.FirstOrDefault(th => th.Contains(day, StringComparison.InvariantCultureIgnoreCase)) ??
+                      day;
+                //if day is next saturday => return
+                day = tempDay;
             }
+
             try
             {
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
@@ -251,7 +254,7 @@ public class ParseService : IParseService
             var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
             wait.Until(d => element.Displayed);
             Utils.ModifyUnnecessaryElementsOnWebsite(driver);
-            _trWithHeaders = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"));
+
             if (element == default) return Task.CompletedTask;
             var h2 =
                 driver.FindElements(
@@ -261,10 +264,20 @@ public class ParseService : IParseService
                 driver.FindElements(
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
             var weekInterval = h3[0].Text;
-            if (_weekInterval is null && _weekInterval !=weekInterval)
+            if (_weekInterval is null || _weekInterval != weekInterval)
             {
                 _weekInterval = weekInterval;
+                var tempThHeaders =
+                    driver.FindElement(
+                            By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
+                        .FindElements(By.TagName("th"));
+                _thHeaders = new List<string>();
+                foreach (var thHeader in tempThHeaders)
+                {
+                    _thHeaders.Add(new string(thHeader.Text));
+                }
             }
+
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
             Utils.HideGroupElements(driver, h3);
             Utils.HideGroupElements(driver, h2);
