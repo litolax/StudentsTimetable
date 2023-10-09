@@ -93,10 +93,14 @@ public class ParseService : IParseService
                     _thHeaders.FirstOrDefault(th => th.Contains(day, StringComparison.InvariantCultureIgnoreCase)) ??
                     day;
                 var daytime = Utils.ParseDateTime(tempDay.Split(", ")[1].Trim());
-                if(daytime?.DayOfWeek is DayOfWeek.Saturday && !Utils.IsDateBelongsToInterval(daytime, _weekInterval))
+                if (daytime?.DayOfWeek is DayOfWeek.Saturday && !Utils.IsDateBelongsToInterval(daytime, _weekInterval))
                 {
+                    Console.WriteLine("End parse day(next saturday)");
+                    await this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                        "Detected next Saturday!" + tempDay));
                     return;
                 }
+
                 day = tempDay;
             }
 
@@ -270,11 +274,12 @@ public class ParseService : IParseService
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
             var weekIntervalStr = h3[0].Text;
             var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
-            if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval)
+            if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
+                _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
             {
-                if (_weekInterval is null ||
-                         _weekInterval[1] is not null && DateTime.Today == _weekInterval[1] || _weekInterval[1]?.DayOfWeek == DayOfWeek.Sunday)
-                    _weekInterval = weekInterval;
+                _weekInterval = weekInterval;
+                Console.WriteLine("New interval is " + weekIntervalStr);
+                this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
                 var tempThHeaders =
                     driver.FindElement(
                             By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
