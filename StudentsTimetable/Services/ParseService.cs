@@ -1,7 +1,5 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
-using OfficeOpenXml.FormulaParsing.Excel.Functions.DateTime;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
@@ -11,7 +9,6 @@ using StudentsTimetable.Models;
 using Telegram.BotAPI.AvailableMethods;
 using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Services;
-using Day = StudentsTimetable.Models.Day;
 using Size = System.Drawing.Size;
 using Timer = System.Timers.Timer;
 
@@ -95,7 +92,11 @@ public class ParseService : IParseService
                 var tempDay =
                     _thHeaders.FirstOrDefault(th => th.Contains(day, StringComparison.InvariantCultureIgnoreCase)) ??
                     day;
-                //if day is next saturday => return
+                var daytime = Utils.ParseDateTime(tempDay.Split(", ")[1].Trim());
+                if(daytime?.DayOfWeek is DayOfWeek.Saturday && !Utils.IsDateBelongsToInterval(daytime, _weekInterval))
+                {
+                    return;
+                }
                 day = tempDay;
             }
 
@@ -240,7 +241,7 @@ public class ParseService : IParseService
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
-                $"{notificationUserList.Count} notifications sent"));
+                $"{day}:{notificationUserList.Count} notifications sent"));
         });
     }
 

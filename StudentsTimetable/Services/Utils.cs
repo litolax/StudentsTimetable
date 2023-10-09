@@ -111,9 +111,12 @@ public static class Utils
         return weekInterval;
     }
 
-    public static DateTime? ParseDateTime(string? date)
+    public static bool IsDateBelongsToInterval(DateTime? date, DateTime?[]? interval) => date is not null &&
+        interval is not null && date.Value.Date >= interval?[0]?.Date && date.Value.Date <= interval[1]?.Date;
+    
+    public static DateTime? ParseDateTime(string? date, string? format = "dd.MM.yyyy")
     {
-        if (date is not null && DateTime.TryParseExact(date.Trim(), "dd.MM.yyyy", CultureInfo.InvariantCulture,
+        if (date is not null && DateTime.TryParseExact(date.Trim(), format, CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out var dayTime)) return dayTime;
         return null;
     }
