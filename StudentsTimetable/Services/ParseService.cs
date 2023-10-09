@@ -27,7 +27,8 @@ public class ParseService : IParseService
     private readonly IBotService _botService;
     private readonly IFirefoxService _firefoxService;
     private readonly IDistributionService _distributionService;
-
+    private DateTime?[]? _weekInterval;
+    private List<string> _thHeaders;
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
 
@@ -49,7 +50,6 @@ public class ParseService : IParseService
         this._distributionService = distributionService;
         this.Groups = groups.Entries.Groups;
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
-
         var parseTimer = new Timer(1_000_000)
         {
             AutoReset = true, Enabled = true
@@ -86,7 +86,24 @@ public class ParseService : IParseService
             if (content is null) return;
 
             var groupsAndLessons = content.FindElements(By.XPath(".//div")).ToList();
-            if (groupsAndLessons.Count > 0) day = groupsAndLessons[0].Text.Split('-')[1].Trim();
+            if (groupsAndLessons.Count > 0)
+            {
+                day = groupsAndLessons[0].Text.Split('-')[1].Trim();
+                var tempDay =
+                    _thHeaders.FirstOrDefault(th => th.Contains(day, StringComparison.InvariantCultureIgnoreCase)) ??
+                    day;
+                var daytime = Utils.ParseDateTime(tempDay.Split(", ")[1].Trim());
+                if (daytime?.DayOfWeek is DayOfWeek.Saturday && !Utils.IsDateBelongsToInterval(daytime, _weekInterval))
+                {
+                    Console.WriteLine("End parse day(next saturday)");
+                    await this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                        "Detected next Saturday!" + tempDay));
+                    return;
+                }
+
+                day = tempDay;
+            }
+
             try
             {
                 for (var i = 1; i < groupsAndLessons.Count; i += 2)
@@ -228,7 +245,7 @@ public class ParseService : IParseService
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
-                $"{notificationUserList.Count} notifications sent"));
+                $"{day}:{notificationUserList.Count} notifications sent"));
         });
     }
 
@@ -255,6 +272,25 @@ public class ParseService : IParseService
             var h3 =
                 driver.FindElements(
                     By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
+            var weekIntervalStr = h3[0].Text;
+            var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
+            if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
+                _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
+            {
+                _weekInterval = weekInterval;
+                Console.WriteLine("New interval is " + weekIntervalStr);
+                this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
+                var tempThHeaders =
+                    driver.FindElement(
+                            By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
+                        .FindElements(By.TagName("th"));
+                _thHeaders = new List<string>();
+                foreach (var thHeader in tempThHeaders)
+                {
+                    _thHeaders.Add(new string(thHeader.Text));
+                }
+            }
+
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
             Utils.HideGroupElements(driver, h3);
             Utils.HideGroupElements(driver, h2);
