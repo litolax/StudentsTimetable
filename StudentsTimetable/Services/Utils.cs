@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using StudentsTimetable.Models;
@@ -23,17 +24,17 @@ public static class Utils
 
         var footer = driver.FindElement(By.Id("footer"));
         driver.ExecuteScript("arguments[0].style='display: none'", footer);
-            
+
         var breadcrumbs = driver.FindElement(By.ClassName("breadcrumbs"));
         driver.ExecuteScript("arguments[0].style='display: none'", breadcrumbs);
-            
+
         var pageShareButtons = driver.FindElement(By.ClassName("page_share_buttons"));
         driver.ExecuteScript("arguments[0].style='display: none'", pageShareButtons);
 
         var all = driver.FindElement(By.CssSelector("*"));
         driver.ExecuteScript("arguments[0].style='overflow-y: hidden; overflow-x: hidden'", all);
-        
-        
+
+
         driver.ExecuteScript("arguments[0].style='display : none'", driver.FindElement(By.TagName("h1")));
         driver.Manage().Window.Size = new Size(1920, container.Size.Height - 30);
     }
@@ -83,12 +84,37 @@ public static class Utils
         }
     }
 
-
     public static void ShowGroupElements(FirefoxDriver driver, IEnumerable<IWebElement> elements)
     {
         foreach (var element in elements)
         {
             driver.ExecuteScript("arguments[0].style='display: block;'", element);
         }
+    }
+
+    /// <summary>
+    /// Week interval parse method
+    /// </summary>
+    /// <param name="interval">String in format "day.month.year - day.month.year"</param>
+    /// <returns>week interval array, where 0 - start, 1 - end. Or null, if one of two dates is incorrect</returns>
+    public static DateTime?[]? ParseDateTimeWeekInterval(string interval)
+    {
+        var weekInterval = new DateTime?[2];
+        var days = interval.Split('-');
+        if (days.Length != 2) return null;
+        for (var i = 0; i < days.Length; i++)
+        {
+            weekInterval[i] = ParseDateTime(days[i]);
+            if (weekInterval[i] is null) return null;
+        }
+
+        return weekInterval;
+    }
+
+    public static DateTime? ParseDateTime(string? date)
+    {
+        if (date is not null && DateTime.TryParseExact(date.Trim(), "dd.MM.yyyy", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var dayTime)) return dayTime;
+        return null;
     }
 }
