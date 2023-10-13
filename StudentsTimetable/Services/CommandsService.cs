@@ -127,7 +127,7 @@ namespace StudentsTimetable.Services
                         var notificationUsers = new List<Models.User>();
                         notificationUsers.AddRange(
                             (await this._mongoService.Database.GetCollection<Models.User>("Users")
-                                .FindAsync(u => u.Group != null && u.Notifications)).ToList());
+                                .FindAsync(u => u.Groups != null && u.Notifications)).ToList());
 
                         if (notificationUsers.Count == 0) return;
 

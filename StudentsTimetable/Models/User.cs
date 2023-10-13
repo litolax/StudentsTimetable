@@ -9,7 +9,7 @@ public class User
     public string? Username { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
-    public string? Group { get; set; }
+    public string?[]? Groups { get; set; }
     public bool Notifications { get; set; }
 
     public User(long userId, string? username, string firstName, string? lastName)
