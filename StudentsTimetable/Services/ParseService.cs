@@ -286,15 +286,15 @@ public class ParseService : IParseService
                 _weekInterval = weekInterval;
                 Console.WriteLine("New interval is " + weekIntervalStr);
                 this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
-                var tempThHeaders =
-                    driver.FindElement(
-                            By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
-                        .FindElements(By.TagName("th"));
-                _thHeaders = new List<string>();
-                foreach (var thHeader in tempThHeaders)
-                {
-                    _thHeaders.Add(new string(thHeader.Text));
-                }
+            }
+
+            var tempThHeaders = driver
+                .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
+                .FindElements(By.TagName("th"));
+            _thHeaders = new List<string>();
+            foreach (var thHeader in tempThHeaders)
+            {
+                _thHeaders.Add(new string(thHeader.Text));
             }
 
             var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
