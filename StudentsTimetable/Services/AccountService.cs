@@ -20,7 +20,7 @@ namespace StudentsTimetable.Services
         private readonly IMongoService _mongoService;
         private readonly IParseService _parseService;
         private readonly IBotService _botService;
-
+        private const int MaxGroupCount = 5;
         public AccountService(IMongoService mongoService, IParseService parseService, IBotService botService)
         {
             this._mongoService = mongoService;
@@ -53,7 +53,7 @@ namespace StudentsTimetable.Services
         {
             if (groupName is null) return false;
             var groupNames = groupName.Split(',', ';', StringSplitOptions.RemoveEmptyEntries);
-            groupNames = groupNames.Length > 5 ? groupNames[..5] : groupNames;
+            groupNames = groupNames.Length > MaxGroupCount ? groupNames[..MaxGroupCount] : groupNames;
             for (var i = 0; i < groupNames.Length; i++)
             {
                 groupNames[i] = groupNames[i].Trim();
