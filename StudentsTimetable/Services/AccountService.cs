@@ -52,8 +52,8 @@ namespace StudentsTimetable.Services
         public async Task<bool> ChangeGroup(User telegramUser, string? groupName)
         {
             if (groupName is null) return false;
-            var groupNames = groupName.Split(',', ';',StringSplitOptions.RemoveEmptyEntries);
-            groupNames = groupNames.Length > 3 ? groupNames[..3] : groupNames;
+            var groupNames = groupName.Split(',', ';', StringSplitOptions.RemoveEmptyEntries);
+            groupNames = groupNames.Length > 5 ? groupNames[..5] : groupNames;
             for (var i = 0; i < groupNames.Length; i++)
             {
                 groupNames[i] = groupNames[i].Trim();
@@ -65,7 +65,7 @@ namespace StudentsTimetable.Services
             if (correctGroupNames is null || correctGroupNames.Length == 0)
             {
                 await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id,
-                    $"Групп{(groupNames.Length == 0 ? 'a' : 'ы')} не найдена"));
+                    $"Групп{(groupNames.Length == 0 ? 'a' : 'ы')} {Utils.GetGroupsString(groupNames)} не найден{(groupNames.Length == 0 ? 'a' : 'ы')}"));
                 return false;
             }
 
@@ -79,7 +79,7 @@ namespace StudentsTimetable.Services
             await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id,
                 correctGroupNames.Length == 1
                     ? $"Вы успешно выбрали {correctGroupNames[0]} группу"
-                    : $"Вы успешно выбрали группы {string.Join(", ", correctGroupNames)}"));
+                    : $"Вы успешно выбрали группы {Utils.GetGroupsString(correctGroupNames)}"));
             return true;
         }
 

@@ -113,11 +113,13 @@ public static class Utils
 
     public static bool IsDateBelongsToInterval(DateTime? date, DateTime?[]? interval) => date is not null &&
         interval is not null && date.Value.Date >= interval?[0]?.Date && date.Value.Date <= interval[1]?.Date;
-    
+
     public static DateTime? ParseDateTime(string? date, string? format = "dd.MM.yyyy")
     {
         if (date is not null && DateTime.TryParseExact(date.Trim(), format, CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out var dayTime)) return dayTime;
         return null;
     }
+
+    public static string GetGroupsString(string[] groups) => string.Join(", ", groups);
 }
