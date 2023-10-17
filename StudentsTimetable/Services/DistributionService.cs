@@ -37,15 +37,15 @@ public class DistributionService : IDistributionService
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         if (user is null) return;
+        if (user.Groups is null)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
+            return;
+        }
 
         foreach (var group in user.Groups)
         {
-            if (group is null || !File.Exists($"./cachedImages/{group.Replace("*", "knor")}.png"))
-            {
-                await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
-                return;
-            }
-
+            if (group is null || !File.Exists($"./cachedImages/{group.Replace("*", "knor")}.png")) return;
             var image = await Image.LoadAsync($"./cachedImages/{group.Replace("*", "knor")}.png");
 
             if (image is not { })
@@ -66,15 +66,15 @@ public class DistributionService : IDistributionService
     public async Task SendDayTimetable(Models.User? user)
     {
         if (user is null) return;
+        if (user.Groups is null)
+        {
+            await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
+            return;
+        }
 
         foreach (var group in user.Groups)
         {
-            if (group is null)
-            {
-                await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId, "Вы еще не выбрали группу"));
-                return;
-            }
-
+            if (group is null) continue;
             if (ParseService.Timetable.Count < 1)
             {
                 await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
