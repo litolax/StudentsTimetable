@@ -102,7 +102,7 @@ namespace StudentsTimetable.Services
                 case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":
                 {
                     this._botService.SendMessage(
-                        new SendMessageArgs(sender.Id, "Для выбора группы отправьте её номер."));
+                        new SendMessageArgs(sender.Id, "Для выбора групп отправьте её номера.(Максимум - 5 групп. Пример: 160, 161, 166,53, 54)"));
                     this._mongoService.CreateState(new UserState(message.Chat.Id, "changeGroup"));
                     break;
                 }
@@ -127,7 +127,7 @@ namespace StudentsTimetable.Services
                         var notificationUsers = new List<Models.User>();
                         notificationUsers.AddRange(
                             (await this._mongoService.Database.GetCollection<Models.User>("Users")
-                                .FindAsync(u => u.Group != null && u.Notifications)).ToList());
+                                .FindAsync(u => u.Groups != null && u.Notifications)).ToList());
 
                         if (notificationUsers.Count == 0) return;
 
@@ -139,7 +139,7 @@ namespace StudentsTimetable.Services
                             }
 
                             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
-                                $"{notificationUsers.Count} notifications sent"));
+                                $"After timetablenotify:{notificationUsers.Count} notifications sent"));
                         });
                     }
                 }

@@ -178,10 +178,13 @@ public class ParseService : IParseService
                 if (groupInfoFromTimetable?.Lessons is not null && groupInfoFromTimetable.Lessons.Count > 0)
                     notificationUserList.AddRange(
                         (await this._mongoService.Database.GetCollection<User>("Users")
-                            .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
+                            .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
                         {
-                            if (u?.Group != null &&
-                                int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                            if (u?.Groups != null &&
+                                int.TryParse(
+                                    Regex.Replace(
+                                        u.Groups?.FirstOrDefault(g => g == groupInfo.Number.ToString()) ?? string.Empty,
+                                        "[^0-9]", ""), out int userGroupNumber))
                                 return userGroupNumber == groupInfo.Number;
                             return false;
                         }).ToList());
@@ -208,10 +211,13 @@ public class ParseService : IParseService
             {
                 notificationUserList.AddRange(
                     (await this._mongoService.Database.GetCollection<User>("Users")
-                        .FindAsync(u => u.Group != null && u.Notifications)).ToList().Where(u =>
+                        .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
                     {
-                        if (u?.Group != null &&
-                            int.TryParse(Regex.Replace(u.Group, "[^0-9]", ""), out int userGroupNumber))
+                        if (u?.Groups != null &&
+                            int.TryParse(
+                                Regex.Replace(
+                                    u.Groups?.FirstOrDefault(g => g == groupInfo.Number.ToString()) ?? string.Empty,
+                                    "[^0-9]", ""), out int userGroupNumber))
                             return userGroupNumber == groupInfo.Number;
                         return false;
                     }).ToList());
