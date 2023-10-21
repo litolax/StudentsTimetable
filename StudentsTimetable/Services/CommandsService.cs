@@ -2,6 +2,7 @@
 using MongoDB.Driver;
 using StudentsTimetable.Config;
 using Telegram.BotAPI.AvailableMethods;
+using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core;
 using TelegramBot_Timetable_Core.Config;
@@ -110,7 +111,11 @@ namespace StudentsTimetable.Services
                 case "👨‍👨‍👧‍👦Сменить группу👨‍👨‍👧‍👦":
                 {
                     this._botService.SendMessage(
-                        new SendMessageArgs(sender.Id, "Для выбора групп отправьте её номера.(Максимум - 5 групп. Пример: 160, 161, 166,53, 54)"));
+                        new SendMessageArgs(sender.Id,
+                            $"Для выбора групп отправьте её номера.(Максимум - 5 групп. Пример: 160, 161, 166,53, 54)\nВаши выбранные группы:```{string.Join(", ", (await this._accountService.GetUserById(sender.Id))?.Groups ?? Array.Empty<string>())}```")
+                        {
+                            ParseMode = ParseMode.Markdown
+                        });
                     this._mongoService.CreateState(new UserState(message.Chat.Id, "changeGroup"));
                     break;
                 }
