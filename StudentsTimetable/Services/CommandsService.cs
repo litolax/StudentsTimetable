@@ -1,8 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
+using StudentsTimetable.Config;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableTypes;
 using TelegramBot_Timetable_Core;
+using TelegramBot_Timetable_Core.Config;
 using TelegramBot_Timetable_Core.Models;
 using TelegramBot_Timetable_Core.Services;
 
@@ -19,12 +21,13 @@ namespace StudentsTimetable.Services
         private readonly IMongoService _mongoService;
         private readonly IBotService _botService;
         private readonly IDistributionService _distributionService;
+        private static string _groupsList;
 
         public CommandsService(IInterfaceService interfaceService, IAccountService accountService,
             IMongoService mongoService, IBotService botService, IDistributionService distributionService)
         {
             Core.OnMessageReceive += this.OnMessageReceive;
-
+            _groupsList = string.Join('\n', new Config<GroupsConfig>().Entries.Groups);
             this._interfaceService = interfaceService;
             this._accountService = accountService;
             this._mongoService = mongoService;
@@ -61,6 +64,11 @@ namespace StudentsTimetable.Services
                 {
                     this._botService.SendMessage(new SendMessageArgs(sender.Id,
                         $"Вы пользуетесь ботом, который поможет узнать Вам актуальное расписание учеников МГКЦТ.\nСоздатель @litolax"));
+                    break;
+                }
+                case "/groups":
+                {
+                    this._botService.SendMessage(new SendMessageArgs(sender.Id, _groupsList));
                     break;
                 }
                 case "/belltime":

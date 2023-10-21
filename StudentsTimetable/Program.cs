@@ -45,6 +45,7 @@ namespace StudentsTimetable
             await Core.Start(new[]
             {
                 new BotCommand("start", "Запустить приложение"), new BotCommand("help", "Помощь"),
+                new BotCommand("groups", "Посмотреть список групп"), new BotCommand("groups", "Группы"),
                 new BotCommand("belltime", "Посмотреть расписание звонков")
             });
         }
