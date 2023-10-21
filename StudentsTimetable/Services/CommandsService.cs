@@ -112,7 +112,7 @@ namespace StudentsTimetable.Services
                 {
                     this._botService.SendMessage(
                         new SendMessageArgs(sender.Id,
-                            $"Для выбора групп отправьте её номера.(Максимум - 5 групп. Пример: 160, 161, 166,53, 54)\nВаши выбранные группы:```{string.Join(", ", (await this._accountService.GetUserById(sender.Id))?.Groups ?? Array.Empty<string>())}```")
+                            $"Для выбора групп отправьте её номера.(Максимум - 5 групп. Пример: 160, 161, 166,53, 54)\nВаши выбранные группы: ```{string.Join(", ", (await this._accountService.GetUserById(sender.Id))?.Groups ?? Array.Empty<string>())}```")
                         {
                             ParseMode = ParseMode.Markdown
                         });
