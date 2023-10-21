@@ -19,4 +19,24 @@ public class User
         this.FirstName = firstName;
         this.LastName = lastName;
     }
+
+    public override bool Equals(object obj)
+    {
+        if (ReferenceEquals(this, obj))
+        {
+            return true;
+        }
+
+        return obj switch
+        {
+            null => false,
+            User user => this.Id == user.Id && this.UserId == user.UserId,
+            _ => false
+        };
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Id, UserId);
+    }
 }

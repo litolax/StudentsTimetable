@@ -156,7 +156,7 @@ public class ParseService : IParseService
             }
         }
 
-        var notificationUserList = new List<User>();
+        var notificationUserHashSet = new HashSet<User>();
         var groupUpdatedList = new List<int>();
         foreach (var groupInfo in groupInfos)
         {
@@ -176,18 +176,17 @@ public class ParseService : IParseService
             if (groupInfo.Lessons.Count < 1)
             {
                 if (groupInfoFromTimetable?.Lessons is not null && groupInfoFromTimetable.Lessons.Count > 0)
-                    notificationUserList.AddRange(
-                        (await this._mongoService.Database.GetCollection<User>("Users")
-                            .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
-                        {
-                            if (u?.Groups != null &&
-                                int.TryParse(
-                                    Regex.Replace(
-                                        u.Groups?.FirstOrDefault(g => g == groupInfo.Number.ToString()) ?? string.Empty,
-                                        "[^0-9]", ""), out int userGroupNumber))
-                                return userGroupNumber == groupInfo.Number;
-                            return false;
-                        }).ToList());
+                    foreach (var notificationUser in (await this._mongoService.Database.GetCollection<User>("Users")
+                                 .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
+                             {
+                                 if (u?.Groups != null &&
+                                     int.TryParse(Regex.Replace(u.Groups?.FirstOrDefault(g =>
+                                             g == groupInfo.Number.ToString()) ?? string.Empty, "[^0-9]", ""),
+                                         out int userGroupNumber))
+                                     return userGroupNumber == groupInfo.Number;
+                                 return false;
+                             }).ToList())
+                        notificationUserHashSet.Add(notificationUser);
                 continue;
             }
 
@@ -209,18 +208,18 @@ public class ParseService : IParseService
             groupUpdatedList.Add(groupInfo.Number);
             try
             {
-                notificationUserList.AddRange(
-                    (await this._mongoService.Database.GetCollection<User>("Users")
-                        .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
-                    {
-                        if (u?.Groups != null &&
-                            int.TryParse(
-                                Regex.Replace(
-                                    u.Groups?.FirstOrDefault(g => g == groupInfo.Number.ToString()) ?? string.Empty,
-                                    "[^0-9]", ""), out int userGroupNumber))
-                            return userGroupNumber == groupInfo.Number;
-                        return false;
-                    }).ToList());
+                foreach (var notificationUser in (await this._mongoService.Database.GetCollection<User>("Users")
+                             .FindAsync(u => u.Groups != null && u.Notifications)).ToList().Where(u =>
+                         {
+                             if (u?.Groups != null &&
+                                 int.TryParse(
+                                     Regex.Replace(
+                                         u.Groups?.FirstOrDefault(g => g == groupInfo.Number.ToString()) ??
+                                         string.Empty,
+                                         "[^0-9]", ""), out int userGroupNumber))
+                                 return userGroupNumber == groupInfo.Number;
+                             return false;
+                         }).ToList()) notificationUserHashSet.Add(notificationUser);
             }
             catch (Exception e)
             {
@@ -241,17 +240,17 @@ public class ParseService : IParseService
 
         Console.WriteLine("End parse day");
 
-        if (notificationUserList.Count == 0) return;
+        if (notificationUserHashSet.Count == 0) return;
 
         _ = Task.Run(() =>
         {
-            foreach (var user in notificationUserList)
+            foreach (var user in notificationUserHashSet)
             {
                 _ = this._distributionService.SendDayTimetable(user);
             }
 
             this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
-                $"{day}:{notificationUserList.Count} notifications sent"));
+                $"{day}:{notificationUserHashSet.Count} notifications sent"));
         });
     }
 
