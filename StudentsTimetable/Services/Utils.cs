@@ -121,5 +121,5 @@ public static class Utils
         return null;
     }
 
-    public static string GetGroupsString(string[] groups) => string.Join(", ", groups);
+    public static string GetGroupsString(string?[] groups) => string.Join(", ", groups);
 }

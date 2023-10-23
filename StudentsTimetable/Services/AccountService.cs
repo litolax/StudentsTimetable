@@ -21,6 +21,7 @@ namespace StudentsTimetable.Services
         private readonly IParseService _parseService;
         private readonly IBotService _botService;
         private const int MaxGroupCount = 5;
+
         public AccountService(IMongoService mongoService, IParseService parseService, IBotService botService)
         {
             this._mongoService = mongoService;
@@ -59,8 +60,9 @@ namespace StudentsTimetable.Services
                 groupNames[i] = groupNames[i].Trim();
             }
 
-            var correctGroupNames = this._parseService.Groups.Where(g => groupNames.Any(group =>
-                g.ToLower().Trim().Contains(group.ToLower().Trim()))).ToArray();
+            var correctGroupNames = groupNames
+                .Select(g => this._parseService.Groups.FirstOrDefault(group =>
+                    group.StartsWith(g, StringComparison.InvariantCultureIgnoreCase))).Where(correctGroup => correctGroup is not null).ToArray();
 
             if (correctGroupNames is null || correctGroupNames.Length == 0)
             {
@@ -130,8 +132,10 @@ namespace StudentsTimetable.Services
 
             await this._botService.SendMessageAsync(new SendMessageArgs(telegramUser.Id,
                 user.Notifications
-                    ? $"Вы успешно подписались на расписание группы {user.Groups}"
-                    : $"Вы успешно отменили подписку на расписание группы {user.Groups}")
+                    ? user.Groups.Length == 1
+                        ? $"Вы успешно подписались на расписание группы {user.Groups[0]}"
+                        : $"Вы успешно подписались на расписание групп {Utils.GetGroupsString(user.Groups)}"
+                    : "Вы успешно отменили подписку.")
             {
                 ReplyMarkup = keyboard
             });
