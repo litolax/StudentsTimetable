@@ -204,7 +204,6 @@ public class ParseService : IParseService
             groupInfo.Lessons = groupInfo.Lessons.OrderBy(l => l.Number).ToList();
 
             if (groupInfoFromTimetable is null || groupInfoFromTimetable.Equals(groupInfo)) continue;
-
             groupUpdatedList.Add(groupInfo.Number);
             try
             {
@@ -254,84 +253,95 @@ public class ParseService : IParseService
         });
     }
 
-    private Task ParseWeek()
+    private async Task ParseWeek()
     {
         Console.WriteLine("Start parse week");
-
         var (service, options, delay) = this._firefoxService.Create();
-        using (FirefoxDriver driver = new FirefoxDriver(service, options, delay))
+        using FirefoxDriver driver = new FirefoxDriver(service, options, delay);
+        driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
+        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(120));
+        bool isNewInterval = false;
+        driver.Navigate().GoToUrl(WeekUrl);
+        var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
+        wait.Until(d => element.Displayed);
+        Utils.ModifyUnnecessaryElementsOnWebsite(driver);
+
+        if (element == default) return;
+        var h2 =
+            driver.FindElements(
+                By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h2"));
+
+        var h3 =
+            driver.FindElements(
+                By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
+        var weekIntervalStr = h3[0].Text;
+        var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
+        if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
+            _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
         {
-            driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
-            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(120));
+            isNewInterval = _weekInterval is null;
+            _weekInterval = weekInterval;
+            Console.WriteLine("New interval is " + weekIntervalStr);
+            this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
+        }
 
-            driver.Navigate().GoToUrl(WeekUrl);
-            var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
-            wait.Until(d => element.Displayed);
-            Utils.ModifyUnnecessaryElementsOnWebsite(driver);
+        var tempThHeaders = driver
+            .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
+            .FindElements(By.TagName("th"));
+        _thHeaders = new List<string>();
+        foreach (var thHeader in tempThHeaders)
+        {
+            _thHeaders.Add(new string(thHeader.Text));
+        }
 
-            if (element == default) return Task.CompletedTask;
-            var h2 =
-                driver.FindElements(
-                    By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h2"));
-
-            var h3 =
-                driver.FindElements(
-                    By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
-            var weekIntervalStr = h3[0].Text;
-            var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
-            if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
-                _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
+        var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
+        Utils.HideGroupElements(driver, h3);
+        Utils.HideGroupElements(driver, h2);
+        Utils.HideGroupElements(driver, table);
+        var notificationUserHashSet = new HashSet<User>();
+        for (var i = 0; i < h2.Count; i++)
+        {
+            var groupH2 = h2[i];
+            var groupName = string.Empty;
+            var list = new List<IWebElement> { groupH2, h3[i], table[i] };
+            try
             {
-                _weekInterval = weekInterval;
-                Console.WriteLine("New interval is " + weekIntervalStr);
-                this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
+                var actions = new Actions(driver);
+                Utils.ShowGroupElements(driver, list);
+                actions.MoveToElement(groupH2).Perform();
+                groupName = this.Groups.First(g => g == groupH2.Text.Split('-')[1].Trim());
+                driver.Manage().Window.Size =
+                    new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
+                var screenshot = (driver as ITakesScreenshot).GetScreenshot();
+                using var image = Image.Load(screenshot.AsByteArray);
+                image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
+                _ = image.SaveAsync($"./cachedImages/{groupName.Replace("*", "knor")}.png");
+                if (isNewInterval)
+                    foreach (var notificationUser in (await this._mongoService.Database.GetCollection<User>("Users")
+                                 .FindAsync(u => u.Groups != null && u.Notifications)).ToList())
+                        notificationUserHashSet.Add(notificationUser);
             }
-
-            var tempThHeaders = driver
-                .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
-                .FindElements(By.TagName("th"));
-            _thHeaders = new List<string>();
-            foreach (var thHeader in tempThHeaders)
+            catch (Exception e)
             {
-                _thHeaders.Add(new string(thHeader.Text));
+                this._botService.SendAdminMessage(new SendMessageArgs(0,
+                    e.Message + "\nОшибка в группе: " + groupName));
             }
-
-            var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
-            Utils.HideGroupElements(driver, h3);
-            Utils.HideGroupElements(driver, h2);
-            Utils.HideGroupElements(driver, table);
-            for (var i = 0; i < h2.Count; i++)
+            finally
             {
-                var groupH2 = h2[i];
-                var groupName = string.Empty;
-                var list = new List<IWebElement> { groupH2, h3[i], table[i] };
-                try
-                {
-                    var actions = new Actions(driver);
-                    Utils.ShowGroupElements(driver, list);
-                    actions.MoveToElement(groupH2).Perform();
-                    groupName = this.Groups.First(g => g == groupH2.Text.Split('-')[1].Trim());
-                    driver.Manage().Window.Size =
-                        new Size(1920, driver.FindElement(By.ClassName("main")).Size.Height - 30);
-                    var screenshot = (driver as ITakesScreenshot).GetScreenshot();
-                    using var image = Image.Load(screenshot.AsByteArray);
-                    image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
-                    image.SaveAsync($"./cachedImages/{groupName.Replace("*", "knor")}.png");
-                }
-                catch (Exception e)
-                {
-                    this._botService.SendAdminMessage(new SendMessageArgs(0, e.Message));
-                    this._botService.SendAdminMessage(new SendMessageArgs(0, "Ошибка в группе: " + groupName));
-                }
-                finally
-                {
-                    Utils.HideGroupElements(driver, list);
-                }
+                Utils.HideGroupElements(driver, list);
             }
         }
 
+        if (isNewInterval)
+            _ = Task.Run(() =>
+            {
+                foreach (var user in notificationUserHashSet)
+                    _ = this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
+                        $"У групп{(user.Groups.Length > 1 ? "" : "ы")} {Utils.GetGroupsString(user!.Groups)} вышло новое недельное расписание. Нажмите \"Посмотреть расписание на неделю\" для просмотра недельного расписания."));
+                this._botService.SendAdminMessageAsync(new SendMessageArgs(0,
+                    $"{weekIntervalStr}:{notificationUserHashSet.Count} notifications sent"));
+            });
         Console.WriteLine("End week parse");
-        return Task.CompletedTask;
     }
 
     public async Task UpdateTimetableTick()
