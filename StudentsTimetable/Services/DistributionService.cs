@@ -10,8 +10,9 @@ namespace StudentsTimetable.Services;
 public interface IDistributionService
 {
     Task SendDayTimetable(User telegramUser);
-    Task SendWeek(User telegramUser);
     Task SendDayTimetable(Models.User? user);
+    Task SendWeek(User telegramUser);
+    Task SendWeek(Models.User? user);
 }
 
 public class DistributionService : IDistributionService
@@ -31,11 +32,16 @@ public class DistributionService : IDistributionService
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
         await this.SendDayTimetable(user);
     }
-
+    
     public async Task SendWeek(User telegramUser)
     {
         var userCollection = this._mongoService.Database.GetCollection<Models.User>("Users");
         var user = (await userCollection.FindAsync(u => u.UserId == telegramUser.Id)).ToList().First();
+        await this.SendWeek(user);
+    }
+
+    public async Task SendWeek(Models.User user)
+    {
         if (user is null) return;
         if (user.Groups is null)
         {
@@ -51,7 +57,7 @@ public class DistributionService : IDistributionService
             if (image is not { })
             {
                 await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
-                    "Увы, данная группа не найдена"));
+                    $"Увы, группа {group} не найдена"));
                 return;
             }
 
@@ -78,8 +84,8 @@ public class DistributionService : IDistributionService
             if (ParseService.Timetable.Count < 1)
             {
                 await this._botService.SendMessageAsync(new SendMessageArgs(user.UserId,
-                    $"У {user.Groups} группы нет пар"));
-                return;
+                    $"У {group} группы нет пар"));
+                continue;
             }
 
             foreach (var day in ParseService.Timetable)
