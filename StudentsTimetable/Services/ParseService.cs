@@ -279,7 +279,7 @@ public class ParseService : IParseService
         if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
             _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
         {
-            isNewInterval = _weekInterval is null;
+            isNewInterval = _weekInterval is not null;
             _weekInterval = weekInterval;
             Console.WriteLine("New interval is " + weekIntervalStr);
             this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
