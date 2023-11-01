@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
+using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
@@ -31,7 +32,7 @@ public class ParseService : IParseService
     private List<string> _thHeaders;
     private const string WeekUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-неделю";
     private const string DayUrl = "https://mgkct.minskedu.gov.by/персоналии/учащимся/расписание-занятий-на-день";
-
+    private const string StatePath = "last.json";
     private static string LastDayHtmlContent { get; set; }
     private static string LastWeekHtmlContent { get; set; }
 
@@ -49,6 +50,7 @@ public class ParseService : IParseService
         this._firefoxService = firefoxService;
         this._distributionService = distributionService;
         this.Groups = groups.Entries.Groups;
+        LoadState(StatePath);
         if (!Directory.Exists("./cachedImages")) Directory.CreateDirectory("./cachedImages");
         var parseTimer = new Timer(1_000_000)
         {
@@ -394,6 +396,8 @@ public class ParseService : IParseService
                 await this.ParseDay();
                 await this._botService.SendAdminMessageAsync(new SendMessageArgs(0, "End parse day"));
             }
+
+            if (parseWeek || parseDay) await SaveState(StatePath);
         }
         catch (Exception e)
         {
@@ -401,5 +405,34 @@ public class ParseService : IParseService
         }
 
         Console.WriteLine("End update tick");
+    }
+    
+    private Task SaveState(string filePath)
+    {
+        var stateToSave = new
+        {
+            WeekInterval = _weekInterval,
+            ThHeaders = _thHeaders,
+            LastDayHtmlContent,
+            LastWeekHtmlContent,
+            Timetable
+        };
+
+        string json = JsonConvert.SerializeObject(stateToSave);
+        File.WriteAllText(filePath, json);
+        return Task.CompletedTask;
+    }
+
+    private void LoadState(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            var state = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(filePath));
+            _weekInterval = state!.WeekInterval.ToObject<DateTime?[]>();
+            _thHeaders = state.ThHeaders.ToObject<List<string>>();
+            LastDayHtmlContent = state.LastDayHtmlContent;
+            LastWeekHtmlContent = state.LastWeekHtmlContent;
+            Timetable = state.Timetable.ToObject<List<Day>>();
+        }
     }
 }
