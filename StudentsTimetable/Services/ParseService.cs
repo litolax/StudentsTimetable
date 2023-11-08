@@ -38,6 +38,7 @@ public class ParseService : IParseService
 
     private const int DriverTimeout = 2000;
 
+    private bool IsNewInterval;
     public string[] Groups { get; init; }
 
     public static List<Day> Timetable { get; set; } = new();
@@ -262,7 +263,7 @@ public class ParseService : IParseService
         using FirefoxDriver driver = new FirefoxDriver(service, options, delay);
         driver.Manage().Timeouts().PageLoad.Add(TimeSpan.FromMinutes(2));
         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(120));
-        bool isNewInterval = false;
+        IsNewInterval = false;
         driver.Navigate().GoToUrl(WeekUrl);
         var element = driver.FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div"));
         wait.Until(d => element.Displayed);
@@ -278,24 +279,25 @@ public class ParseService : IParseService
                 By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
         var weekIntervalStr = h3[0].Text;
         var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
-        if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval &&
-            _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
+        if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval)
         {
-            isNewInterval = _weekInterval is not null;
-            _weekInterval = weekInterval;
-            Console.WriteLine("New interval is " + weekIntervalStr);
-            this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
-        }
+            var isIsNewInterval = IsNewInterval;
+            IsNewInterval = _weekInterval is not null;
+            if (_weekInterval is null || _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
+            {
+                _weekInterval = weekInterval;
+                IsNewInterval = isIsNewInterval != IsNewInterval;
+                Console.WriteLine("New interval is " + weekIntervalStr);
+                this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
+            }
 
-        var tempThHeaders = driver
-            .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
-            .FindElements(By.TagName("th"));
-        _thHeaders = new List<string>();
-        foreach (var thHeader in tempThHeaders)
-        {
-            _thHeaders.Add(new string(thHeader.Text));
+            var tempThHeaders = driver
+                .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
+                .FindElements(By.TagName("th"));
+            _thHeaders = new List<string>();
+            foreach (var thHeader in tempThHeaders) _thHeaders.Add(new string(thHeader.Text));
         }
-
+        
         var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
         Utils.HideGroupElements(driver, h3);
         Utils.HideGroupElements(driver, h2);
@@ -318,7 +320,7 @@ public class ParseService : IParseService
                 using var image = Image.Load(screenshot.AsByteArray);
                 image.Mutate(x => x.Resize((int)(image.Width / 1.5), (int)(image.Height / 1.5)));
                 _ = image.SaveAsync($"./cachedImages/{groupName.Replace("*", "knor")}.png");
-                if (isNewInterval)
+                if (IsNewInterval)
                     foreach (var notificationUser in (await this._mongoService.Database.GetCollection<User>("Users")
                                  .FindAsync(u => u.Groups != null && u.Notifications)).ToList())
                         notificationUserHashSet.Add(notificationUser);
@@ -334,7 +336,7 @@ public class ParseService : IParseService
             }
         }
 
-        if (isNewInterval)
+        if (IsNewInterval)
             _ = Task.Run(() =>
             {
                 foreach (var user in notificationUserHashSet)
@@ -406,7 +408,7 @@ public class ParseService : IParseService
 
         Console.WriteLine("End update tick");
     }
-    
+
     private void SaveState(string filePath)
     {
         var stateToSave = new
