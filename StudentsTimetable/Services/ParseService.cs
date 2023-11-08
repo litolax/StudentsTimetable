@@ -279,25 +279,26 @@ public class ParseService : IParseService
                 By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/h3"));
         var weekIntervalStr = h3[0].Text;
         var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
+        var isIsNewInterval = IsNewInterval;
         if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval)
         {
-            var isIsNewInterval = IsNewInterval;
             IsNewInterval = _weekInterval is not null;
             if (_weekInterval is null || _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
             {
                 _weekInterval = weekInterval;
-                IsNewInterval = isIsNewInterval != IsNewInterval;
+                IsNewInterval = false;
                 Console.WriteLine("New interval is " + weekIntervalStr);
                 this._botService.SendAdminMessage(new SendMessageArgs(0, "New interval is " + weekIntervalStr));
             }
 
+            isIsNewInterval = !isIsNewInterval && IsNewInterval;
             var tempThHeaders = driver
                 .FindElement(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div[1]/table/tbody/tr[1]"))
                 .FindElements(By.TagName("th"));
             _thHeaders = new List<string>();
             foreach (var thHeader in tempThHeaders) _thHeaders.Add(new string(thHeader.Text));
         }
-        
+
         var table = driver.FindElements(By.XPath("/html/body/div[1]/div[2]/div/div[2]/div[1]/div/div"));
         Utils.HideGroupElements(driver, h3);
         Utils.HideGroupElements(driver, h2);
@@ -336,7 +337,7 @@ public class ParseService : IParseService
             }
         }
 
-        if (IsNewInterval)
+        if (isIsNewInterval)
             _ = Task.Run(() =>
             {
                 foreach (var user in notificationUserHashSet)
