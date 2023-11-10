@@ -120,7 +120,7 @@ public class ParseService : IParseService
                     var lessonsElements =
                         groupsAndLessons[i].FindElements(By.XPath(".//table/tbody/tr | .//p")).ToList();
 
-                    if (lessonsElements[0].TagName == "p" || lessonsElements.Count < 1)
+                    if (lessonsElements.Count < 1 || lessonsElements[0].TagName == "p")
                     {
                         groupInfo.Lessons = lessons;
                         groupInfo.Number = int.Parse(group);
