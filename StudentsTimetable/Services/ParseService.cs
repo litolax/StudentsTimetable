@@ -123,7 +123,7 @@ public class ParseService : IParseService
                     if (lessonsElements.Count < 1 || lessonsElements[0].TagName == "p")
                     {
                         groupInfo.Lessons = lessons;
-                        groupInfo.Number = int.Parse(group);
+                        groupInfo.Number = int.Parse(group.Replace("*", ""));
                         groupInfos.Add(groupInfo);
                         continue;
                     }
@@ -281,7 +281,8 @@ public class ParseService : IParseService
         var weekIntervalStr = h3[0].Text;
         var weekInterval = Utils.ParseDateTimeWeekInterval(weekIntervalStr);
         var isIsNewInterval = IsNewInterval;
-        if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval != weekInterval)
+        if (_weekInterval is null || !string.IsNullOrEmpty(weekIntervalStr) && _weekInterval.Length == 2 &&
+            weekInterval is not null && weekInterval.Length == 2 && _weekInterval[1] != weekInterval[1])
         {
             IsNewInterval = _weekInterval is not null;
             if (_weekInterval is null || _weekInterval[1] is not null && DateTime.Today == _weekInterval[1])
