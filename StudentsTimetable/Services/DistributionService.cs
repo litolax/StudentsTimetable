@@ -1,4 +1,5 @@
 ﻿using MongoDB.Driver;
+using SixLabors.ImageSharp;
 using Telegram.BotAPI.AvailableMethods;
 using Telegram.BotAPI.AvailableMethods.FormattingOptions;
 using Telegram.BotAPI.AvailableTypes;
