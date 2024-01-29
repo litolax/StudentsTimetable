@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="HtmlAgilityPack" Version="1.11.54" />
+      <PackageReference Include="HtmlAgilityPack" Version="1.11.58" />
       <PackageReference Include="HtmlTableToExcel" Version="1.0.1" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
       <PackageReference Include="MongoDB.Bson" Version="2.23.0" />
